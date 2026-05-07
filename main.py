@@ -210,6 +210,18 @@ def main():
         "--skip-charts", action="store_true",
         help="Bỏ qua phase tạo biểu đồ"
     )
+    parser.add_argument(
+        "--seed", action="store_true",
+        help="Chèn dữ liệu mẫu vào database (không cần crawl)"
+    )
+    parser.add_argument(
+        "--server", action="store_true",
+        help="Khởi động REST API server (Flask)"
+    )
+    parser.add_argument(
+        "--test", action="store_true",
+        help="Chạy test suite"
+    )
     args = parser.parse_args()
 
     print("╔══════════════════════════════════════════════════════════╗")
@@ -219,6 +231,40 @@ def main():
 
     start_time = time.time()
 
+    # Chế độ seed dữ liệu mẫu (chạy độc lập, không qua pipeline)
+    if args.seed:
+        from seed_data import seed_database
+        seed_database()
+        return
+
+    # Chế độ chạy test (chạy độc lập)
+    if args.test:
+        import unittest
+        loader = unittest.TestLoader()
+        suite = loader.discover(os.path.dirname(os.path.abspath(__file__)), pattern="test_all.py")
+        runner = unittest.TextTestRunner(verbosity=2)
+        result = runner.run(suite)
+        sys.exit(0 if result.wasSuccessful() else 1)
+
+    # Chế độ chạy REST API server (chạy độc lập)
+    if args.server:
+        from seed_data import seed_database
+        seed_database()
+        from api import app
+        print("\n" + "=" * 50)
+        print("  BBC GOOD FOOD - REST API SERVER")
+        print("  Server: http://127.0.0.1:5000")
+        print("=" * 50)
+        print("\n  API Endpoints:")
+        print("    GET /api/stats              -> Thống kê")
+        print("    GET /api/recipes?page=1     -> Danh sách công thức")
+        print("    GET /api/recipes/<id>       -> Chi tiết công thức")
+        print("    GET /api/search?q=chicken   -> Tìm theo nguyên liệu")
+        print("    GET /api/search-name?q=pasta -> Tìm theo tên")
+        app.run(debug=True, host="127.0.0.1", port=5000)
+        return
+
+    # Pipeline chính
     # Phase 1: Khởi tạo database
     existing_count = phase_1_init_database()
 

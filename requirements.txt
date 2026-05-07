@@ -19,5 +19,8 @@ seaborn>=0.13.0
 # Giao diện web
 streamlit>=1.30.0
 
+# REST API
+flask>=3.0.0
+
 # Hỗ trợ
 lxml>=4.9.0

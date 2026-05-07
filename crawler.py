@@ -39,19 +39,48 @@ logger = logging.getLogger(__name__)
 
 
 # ============================================================
+# SESSION TÁI SỬ DỤNG KẾT NỐI HTTP (cải tiến từ dự án bbc_goodfood_crawler)
+# ============================================================
+_session: Optional[requests.Session] = None
+
+
+def _get_session() -> requests.Session:
+    """
+    Khởi tạo hoặc trả về Session đã có (lazy-init).
+    Tái sử dụng TCP connection giữa các request → nhanh hơn.
+    """
+    global _session
+    if _session is None:
+        _session = requests.Session()
+        _session.headers.update(DEFAULT_HEADERS)
+    return _session
+
+
+# ============================================================
 # HÀM GỬI REQUEST AN TOÀN
 # ============================================================
 def safe_request(url: str, max_retries: int = MAX_RETRIES,
                  delay: float = REQUEST_DELAY, timeout: int = REQUEST_TIMEOUT
                  ) -> Optional[requests.Response]:
     """
-    Gửi GET request an toàn với cơ chế retry và delay.
+    Gửi GET request an toàn với cơ chế retry, delay và Session tái sử dụng.
     Tuân thủ Crawl-delay bằng time.sleep sau mỗi request thành công.
+
+    Cải tiến: dùng requests.Session() để tái sử dụng kết nối TCP.
     """
+    session = _get_session()
     for attempt in range(1, max_retries + 1):
         try:
             logger.debug(f"Request [{attempt}/{max_retries}]: {url}")
-            response = requests.get(url, headers=DEFAULT_HEADERS, timeout=timeout)
+            response = session.get(url, timeout=timeout)
+
+            # HTTP 429 Too Many Requests → exponential backoff
+            if response.status_code == 429:
+                wait = min(RETRY_DELAY * attempt * 2, 60)
+                logger.warning(f"HTTP 429 – chờ {wait}s trước khi thử lại ({attempt}/{max_retries})")
+                time.sleep(wait)
+                continue
+
             response.raise_for_status()
             time.sleep(delay)  # Tuân thủ Crawl-delay
             return response
@@ -59,10 +88,7 @@ def safe_request(url: str, max_retries: int = MAX_RETRIES,
             logger.warning(f"HTTP Error {e.response.status_code} tại {url}")
             if e.response.status_code == 404:
                 return None
-            if e.response.status_code == 429:
-                time.sleep(RETRY_DELAY * attempt * 2)
-            else:
-                time.sleep(RETRY_DELAY * attempt)
+            time.sleep(RETRY_DELAY * attempt)
         except requests.exceptions.ConnectionError:
             logger.warning(f"Lỗi kết nối tại {url}. Retry sau {RETRY_DELAY * attempt}s")
             time.sleep(RETRY_DELAY * attempt)

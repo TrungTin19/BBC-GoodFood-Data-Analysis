@@ -10,7 +10,7 @@ import sqlite3
 import logging
 from typing import Dict, List, Optional, Any, Tuple
 
-from config import DB_PATH
+from config import DB_PATH, DATA_DIR
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,25 @@ def get_connection() -> sqlite3.Connection:
     conn.execute("PRAGMA journal_mode = WAL")  # Tối ưu hiệu năng ghi
     conn.row_factory = sqlite3.Row  # Trả kết quả dạng dict-like
     return conn
+
+
+def get_all(query: str = "SELECT * FROM recipes") -> List[Dict]:
+    """
+    Truy vấn chung theo câu SQL bất kỳ (tương tự Lab4/utils.py).
+    Hữu ích khi cần query linh hoạt mà không cần viết hàm riêng.
+
+    Args:
+        query: Câu SQL SELECT
+
+    Returns:
+        Danh sách kết quả dạng list[dict]
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.execute(query)
+        return [dict(row) for row in cursor.fetchall()]
+    finally:
+        conn.close()
 
 
 def create_tables():
@@ -37,27 +56,36 @@ def create_tables():
         # Bảng công thức
         cursor.execute("""
             CREATE TABLE IF NOT EXISTS recipes (
-                recipe_id   INTEGER PRIMARY KEY AUTOINCREMENT,
-                title       TEXT NOT NULL,
-                url         TEXT UNIQUE NOT NULL,
-                prep_time_min INTEGER,
-                cook_time_min INTEGER,
-                difficulty  TEXT,
-                rating      REAL,
-                review_count INTEGER DEFAULT 0,
-                dietary_labels TEXT,
+                recipe_id       INTEGER PRIMARY KEY AUTOINCREMENT,
+                title           TEXT NOT NULL,
+                url             TEXT UNIQUE NOT NULL,
+                prep_time_min   INTEGER,
+                cook_time_min   INTEGER,
+                difficulty      TEXT,
+                rating          REAL,
+                review_count    INTEGER DEFAULT 0,
+                dietary_labels  TEXT,
                 raw_ingredients TEXT,
-                instructions TEXT
+                instructions    TEXT,
+                description     TEXT,
+                image_url       TEXT,
+                created_at      TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         """)
 
-        # Thêm cột instructions nếu chưa tồn tại (tương thích DB cũ)
-        try:
-            cursor.execute("ALTER TABLE recipes ADD COLUMN instructions TEXT")
-            conn.commit()
-            logger.info("Đã thêm cột 'instructions' vào bảng recipes.")
-        except sqlite3.OperationalError:
-            pass  # Cột đã tồn tại
+        # Tự động thêm các cột mới nếu chưa tồn tại (tương thích DB cũ)
+        for col_name, col_def in [
+            ("instructions", "TEXT"),
+            ("description", "TEXT"),
+            ("image_url", "TEXT"),
+            ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
+        ]:
+            try:
+                cursor.execute(f"ALTER TABLE recipes ADD COLUMN {col_name} {col_def}")
+                conn.commit()
+                logger.info(f"Đã thêm cột '{col_name}' vào bảng recipes.")
+            except sqlite3.OperationalError:
+                pass  # Cột đã tồn tại
 
         # Bảng nguyên liệu (quan hệ N-1 với recipes)
         cursor.execute("""
@@ -103,8 +131,8 @@ def insert_recipe(recipe_data: Dict[str, Any]) -> Optional[int]:
             INSERT OR IGNORE INTO recipes
                 (title, url, prep_time_min, cook_time_min, difficulty,
                  rating, review_count, dietary_labels, raw_ingredients,
-                 instructions)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 instructions, description, image_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """, (
             recipe_data.get("title", "Unknown"),
             recipe_data["url"],
@@ -116,6 +144,8 @@ def insert_recipe(recipe_data: Dict[str, Any]) -> Optional[int]:
             recipe_data.get("dietary_labels", ""),
             recipe_data.get("raw_ingredients", ""),
             recipe_data.get("instructions", ""),
+            recipe_data.get("description", ""),
+            recipe_data.get("image_url", ""),
         ))
 
         if cursor.rowcount == 0:
@@ -188,7 +218,7 @@ def get_recipes_with_ingredients() -> List[Dict]:
         cursor = conn.execute("""
             SELECT r.recipe_id, r.title, r.url, r.rating, r.review_count,
                    r.difficulty, r.dietary_labels, r.prep_time_min, r.cook_time_min,
-                   r.raw_ingredients, r.instructions,
+                   r.raw_ingredients, r.instructions, r.description, r.image_url,
                    GROUP_CONCAT(i.ingredient, ' ') AS ingredients_text
             FROM recipes r
             LEFT JOIN ingredients i ON r.recipe_id = i.recipe_id
@@ -196,6 +226,30 @@ def get_recipes_with_ingredients() -> List[Dict]:
             ORDER BY r.recipe_id
         """)
         return [dict(row) for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_recipe_by_id(recipe_id: int) -> Optional[Dict]:
+    """Lấy công thức theo recipe_id."""
+    conn = get_connection()
+    try:
+        cursor = conn.execute("SELECT * FROM recipes WHERE recipe_id = ?", (recipe_id,))
+        row = cursor.fetchone()
+        return dict(row) if row else None
+    finally:
+        conn.close()
+
+
+def get_ingredients_for_recipe(recipe_id: int) -> List[str]:
+    """Lấy danh sách nguyên liệu cho một công thức."""
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "SELECT ingredient FROM ingredients WHERE recipe_id = ? ORDER BY id",
+            (recipe_id,),
+        )
+        return [row["ingredient"] for row in cursor.fetchall()]
     finally:
         conn.close()
 

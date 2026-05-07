@@ -19,24 +19,87 @@ from crawler import safe_request
 logger = logging.getLogger(__name__)
 
 
+def debug_selectors(url: str) -> None:
+    """
+    In ra tất cả class name tìm được trên trang công thức.
+    Hữu ích khi cần kiểm tra selector trước khi crawl full.
+    Chạy: python parser.py <url>
+    """
+    response = safe_request(url)
+    if response is None:
+        logger.error(f"Không thể tải trang: {url}")
+        return
+
+    soup = BeautifulSoup(response.text, "html.parser")
+
+    print(f"\n{'='*70}")
+    print(f"DEBUG SELECTORS – {url}")
+    print(f"{'='*70}")
+
+    # Kiểm tra JSON-LD
+    ld_scripts = soup.find_all("script", type="application/ld+json")
+    if ld_scripts:
+        print(f"\n[Tìm thấy {len(ld_scripts)} script JSON-LD]")
+        for i, script in enumerate(ld_scripts):
+            try:
+                data = json.loads(script.string)
+                if isinstance(data, list):
+                    for item in data:
+                        print(f"  Script {i}: @type={item.get('@type', 'N/A')}")
+                elif isinstance(data, dict):
+                    print(f"  Script {i}: @type={data.get('@type', 'N/A')}")
+            except (json.JSONDecodeError, TypeError):
+                print(f"  Script {i}: (không parse được JSON)")
+
+    # Liệt kê tất cả tag có class
+    print(f"\n[Tất cả CSS class]")
+    class_map = {}
+    for tag in soup.find_all(True):
+        classes = tag.get("class", [])
+        if classes:
+            class_map.setdefault(tag.name, []).append(" ".join(classes))
+
+    for tag_name in sorted(class_map):
+        unique_classes = sorted(set(class_map[tag_name]))
+        for cls in unique_classes:
+            print(f"  <{tag_name} class=\"{cls}\">")
+
+    total = sum(len(set(v)) for v in class_map.values())
+    print(f"\n{'='*70}")
+    print(f"Tổng: {total} class unique trên {len(class_map)} loại tag")
+    print(f"{'='*70}\n")
+
+
 def parse_time_to_minutes(time_str: str) -> Optional[int]:
     """
     Chuyển đổi chuỗi thời gian sang phút.
-    Ví dụ: '1 hr 20 mins' → 80, '30 mins' → 30, '2 hrs' → 120
+    Ví dụ: '1 hr 20 mins' → 80, '30 mins' → 30, '2 hrs' → 120, '0 mins' → 0
+
+    Sửa bug: trả về 0 khi thời gian hợp lệ bằng 0 (ví dụ: "0 minutes").
+    Chỉ trả None khi không parse được.
     """
     if not time_str:
         return None
     time_str = time_str.lower().strip()
     total = 0
+    found = False
     # Tìm giờ
     hr_match = re.search(r"(\d+)\s*(?:hr|hour)s?", time_str)
     if hr_match:
         total += int(hr_match.group(1)) * 60
+        found = True
     # Tìm phút
     min_match = re.search(r"(\d+)\s*(?:min|minute)s?", time_str)
     if min_match:
         total += int(min_match.group(1))
-    return total if total > 0 else None
+        found = True
+    # Nếu chỉ có số thuần (giả sử là phút)
+    if not found:
+        num_match = re.search(r"(\d+)", time_str)
+        if num_match:
+            total = int(num_match.group(1))
+            found = True
+    return total if found else None
 
 
 def clean_ingredient(raw: str) -> str:
