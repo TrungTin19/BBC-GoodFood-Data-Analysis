@@ -1,0 +1,23 @@
+# Thư viện cần thiết cho dự án BBC Good Food Crawler & Analyzer
+# Cài đặt: pip install -r requirements.txt
+
+# Thu thập dữ liệu (Crawl)
+requests>=2.31.0
+beautifulsoup4>=4.12.0
+
+# Xử lý và phân tích dữ liệu
+pandas>=2.0.0
+numpy>=1.24.0
+
+# Machine Learning
+scikit-learn>=1.3.0
+
+# Trực quan hóa
+matplotlib>=3.7.0
+seaborn>=0.13.0
+
+# Giao diện web
+streamlit>=1.30.0
+
+# Hỗ trợ
+lxml>=4.9.0
