@@ -26,7 +26,7 @@ from sklearn.metrics import (
 )
 from sklearn.pipeline import Pipeline
 
-from config import TEST_SIZE, RANDOM_STATE, DEFAULT_TOP_N, DATA_DIR
+from config import TEST_SIZE, RANDOM_STATE, DEFAULT_TOP_N, DATA_DIR, DIETARY_LABELS
 from database import get_recipes_with_ingredients, get_all_recipes
 
 logger = logging.getLogger(__name__)
@@ -319,7 +319,7 @@ def train_all_classifiers() -> List[Dict]:
     Huấn luyện tất cả các classifier (Vegetarian, Vegan, Gluten-free).
     Returns: Danh sách kết quả đánh giá cho từng classifier.
     """
-    labels = ["Vegetarian", "Vegan", "Gluten-free"]
+    labels = DIETARY_LABELS
     all_results = []
 
     for label in labels:

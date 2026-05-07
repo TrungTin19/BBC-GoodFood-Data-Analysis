@@ -12,12 +12,14 @@ Dự án xây dựng hệ thống **thu thập, làm sạch, lưu trữ và tìm
 
 ### Tính năng chính
 
-- 🕷️ **Crawl** tối thiểu 1000 công thức từ BBC Good Food (tuân thủ `robots.txt`)
+- 🕷️ **Crawl** 1000+ công thức từ BBC Good Food qua **Sitemap XML** và **Collection pages** (tuân thủ `robots.txt`)
 - 🧹 **Làm sạch** nguyên liệu: loại bỏ số lượng, đơn vị, hướng dẫn chế biến
+- 📖 **Trích xuất** đầy đủ công thức nấu (instructions) từ JSON-LD và HTML
 - 💾 **Lưu trữ** vào SQLite với 2 bảng `recipes` + `ingredients` (khóa ngoại, chống trùng)
 - 🔍 **Tìm kiếm thông minh** bằng TF-IDF + Cosine Similarity theo nguyên liệu người dùng nhập
+- 🔤 **Tìm kiếm theo tên** món ăn (partial match, case-insensitive)
 - 🤖 **Phân loại chế độ ăn** (Vegetarian, Vegan, Gluten-free) bằng Multinomial Naive Bayes
-- 📊 **Biểu đồ thống kê** (phân bố độ khó, rating, top nguyên liệu, thời gian nấu)
+- 📊 **Biểu đồ thống kê** (phân bố độ khó, rating, top nguyên liệu, thời gian nấu, chế độ ăn)
 - 🖥️ **Giao diện web Streamlit** để tìm kiếm và khám phá công thức
 
 ---
@@ -27,7 +29,7 @@ Dự án xây dựng hệ thống **thu thập, làm sạch, lưu trữ và tìm
 ```
 Do_An/
 ├── config.py           # Cấu hình chung (URL, delay, DB path, ML params)
-├── crawler.py          # Thu thập URL công thức (safe_request, phân trang)
+├── crawler.py          # Thu thập URL công thức (Sitemap XML + Collection pages)
 ├── parser.py           # Trích xuất & làm sạch dữ liệu từ HTML/JSON-LD
 ├── database.py         # Quản lý SQLite (tạo bảng, CRUD, thống kê)
 ├── ml_search.py        # TF-IDF search engine + Naive Bayes classifiers
@@ -62,6 +64,7 @@ Các thư viện chính:
 |----------|----------|
 | `requests` | Gửi HTTP request |
 | `beautifulsoup4` | Parse HTML |
+| `lxml` | Parse XML (sitemap) |
 | `pandas` | Xử lý dữ liệu |
 | `scikit-learn` | TF-IDF, Naive Bayes, đánh giá mô hình |
 | `matplotlib` / `seaborn` | Trực quan hóa |
@@ -84,9 +87,9 @@ Pipeline thực hiện 7 bước tự động:
 |-------|-------|
 | 1 | Khởi tạo database SQLite |
 | 2 | Kiểm tra `robots.txt` (xác nhận quyền crawl) |
-| 3 | Thu thập URL công thức từ trang danh sách |
-| 4 | Parse dữ liệu chi tiết từng công thức |
-| 5 | Lưu vào database |
+| 3 | Thu thập URL công thức từ Sitemap XML + Collection pages |
+| 4 | Parse dữ liệu chi tiết từng công thức (JSON-LD + HTML) |
+| 5 | Lưu vào database (batch, chống trùng) |
 | 6 | Huấn luyện mô hình ML (Naive Bayes) |
 | 7 | Tạo biểu đồ thống kê |
 
@@ -110,7 +113,7 @@ streamlit run app.py
 ```
 
 Giao diện gồm 3 tab:
-- **🔎 Tìm kiếm**: Nhập nguyên liệu, lọc theo rating và chế độ ăn
+- **🔎 Tìm kiếm**: Tìm theo **tên món ăn** hoặc **nguyên liệu**, lọc theo rating và chế độ ăn, xem nguyên liệu và công thức nấu trực tiếp
 - **📊 Thống kê**: Xem số liệu tổng hợp và biểu đồ
 - **🤖 ML Classification**: Dự đoán chế độ ăn từ nguyên liệu
 
@@ -127,14 +130,14 @@ Giao diện gồm 3 tab:
 │ crawler  │ parser   │ database │  ml_search         │
 │   .py    │   .py    │   .py    │    .py             │
 │          │          │          │                    │
-│ Thu thập │ Trích    │ SQLite   │ TF-IDF Search      │
-│ URL từ   │ xuất &   │ recipes  │ + Naive Bayes      │
-│ BBC Good │ làm sạch │ + ingre- │ Classification     │
-│ Food     │ dữ liệu │ dients   │                    │
+│ Sitemap  │ Trích    │ SQLite   │ TF-IDF Search      │
+│ XML +    │ xuất &   │ recipes  │ + Naive Bayes      │
+│ Collecti │ làm sạch │ + ingre- │ Classification     │
+│ on pages │ JSON-LD  │ dients   │                    │
 ├──────────┴──────────┴──────────┴────────────────────┤
 │                                                     │
 │  visualize.py          app.py (Streamlit)           │
-│  Biểu đồ thống kê     Giao diện web                │
+│  Biểu đồ thống kê     Giao diện web tương tác      │
 │                                                     │
 └─────────────────────────────────────────────────────┘
 ```
@@ -154,9 +157,10 @@ Giao diện gồm 3 tab:
 | `cook_time_min` | INTEGER | | Thời gian nấu (phút) |
 | `difficulty` | TEXT | | Độ khó (Easy / More effort / A challenge) |
 | `rating` | REAL | | Điểm đánh giá (0-5) |
-| `review_count` | INTEGER | | Số lượt đánh giá |
+| `review_count` | INTEGER | DEFAULT 0 | Số lượt đánh giá |
 | `dietary_labels` | TEXT | | Nhãn chế độ ăn (phân cách bằng dấu phẩy) |
 | `raw_ingredients` | TEXT | | Nguyên liệu thô (dùng cho ML) |
+| `instructions` | TEXT | | Các bước nấu ăn chi tiết |
 
 ### Bảng `ingredients`
 
@@ -170,12 +174,30 @@ Giao diện gồm 3 tab:
 
 ---
 
+## 🕷️ Chiến lược Thu thập Dữ liệu
+
+Hệ thống sử dụng **2 phương pháp** thu thập URL bổ trợ lẫn nhau:
+
+1. **Sitemap XML** (nguồn chính):
+   - Đọc `sitemap.xml` → tìm các quarterly recipe sitemaps (`YYYY-QN-recipe.xml`)
+   - Parse từng sitemap → lấy URL dạng `/recipes/slug`
+   - Lọc bỏ URL premium, collection, category
+
+2. **Collection Pages** (nguồn bổ sung):
+   - Crawl trang `/recipes/` → tìm các link `/recipes/collection/`
+   - Parse từng collection → lấy thêm URL công thức
+   - Chỉ kích hoạt nếu sitemap chưa đủ 1000 URL
+
+**Tuân thủ**: `robots.txt`, `Crawl-delay: 1s`, retry tối đa 3 lần, bỏ qua URL đã crawl.
+
+---
+
 ## 🔬 Kỹ thuật Machine Learning
 
 ### TF-IDF + Cosine Similarity (Tìm kiếm)
 
 1. Nối tất cả nguyên liệu sạch của mỗi công thức thành chuỗi
-2. Xây dựng ma trận TF-IDF (`stop_words='english'`, `ngram_range=(1,2)`)
+2. Xây dựng ma trận TF-IDF (`stop_words='english'`, `ngram_range=(1,2)`, `max_features=5000`)
 3. Biến đổi query của người dùng thành vector TF-IDF
 4. Tính Cosine Similarity → sắp xếp giảm dần → trả về top N kết quả
 
@@ -184,7 +206,7 @@ Giao diện gồm 3 tab:
 - **Input**: `raw_ingredients` (văn bản nguyên liệu thô)
 - **Labels**: nhãn nhị phân (`is_vegetarian`, `is_vegan`, `is_gluten_free`)
 - **Pipeline**: `CountVectorizer` → `MultinomialNB`
-- **Chia dữ liệu**: 80% train / 20% test
+- **Chia dữ liệu**: 80% train / 20% test (stratified)
 - **Đánh giá**: Accuracy, Precision, Recall, F1-Score, Confusion Matrix
 
 ---

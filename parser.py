@@ -139,7 +139,9 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
 
     recipe["raw_ingredients"] = "; ".join(raw_ingredients)
     recipe["clean_ingredients"] = [
-        clean_ingredient(ing) for ing in raw_ingredients if clean_ingredient(ing)
+        cleaned for cleaned in
+        (clean_ingredient(ing) for ing in raw_ingredients)
+        if cleaned
     ]
 
     # --- 3. Thời gian prep/cook ---

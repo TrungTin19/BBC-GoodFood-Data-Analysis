@@ -25,18 +25,16 @@ from bs4 import BeautifulSoup
 from config import (
     BASE_URL, RECIPES_LIST_URL, REQUEST_DELAY, REQUEST_TIMEOUT,
     MAX_RETRIES, RETRY_DELAY, DEFAULT_HEADERS, MAX_PAGES, MIN_RECIPES,
-    LOG_FILE, LOG_FORMAT, LOG_LEVEL,
 )
 
 # Đảm bảo console Windows hiển thị UTF-8
 if sys.stdout.encoding != "utf-8":
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+if sys.stderr.encoding != "utf-8":
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-# Cấu hình logging
-logging.basicConfig(
-    level=getattr(logging, LOG_LEVEL), format=LOG_FORMAT,
-    handlers=[logging.FileHandler(LOG_FILE, encoding="utf-8"), logging.StreamHandler()],
-)
+# Logging: chỉ tạo logger, KHÔNG gọi basicConfig()
+# (main.py đã cấu hình basicConfig rồi, gọi lại sẽ tạo handler trùng)
 logger = logging.getLogger(__name__)
 
 

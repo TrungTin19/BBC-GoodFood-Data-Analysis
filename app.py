@@ -23,7 +23,7 @@ from database import (
     get_difficulty_distribution, create_tables
 )
 from ml_search import RecipeSearchEngine, DietaryClassifier
-from config import CHARTS_DIR
+from config import CHARTS_DIR, DIETARY_LABELS
 
 # ============================================================
 # CẤU HÌNH TRANG
@@ -75,7 +75,7 @@ def load_search_engine():
 def load_classifiers():
     """Tải các classifier đã huấn luyện."""
     classifiers = {}
-    for label in ["Vegetarian", "Vegan", "Gluten-free"]:
+    for label in DIETARY_LABELS:
         clf = DietaryClassifier(label_name=label)
         clf.load_model()
         if clf.is_trained:
@@ -148,7 +148,7 @@ def main():
     # Selectbox chế độ ăn
     dietary_filter = st.sidebar.selectbox(
         "Chế độ ăn:",
-        options=["Tất cả", "Vegetarian", "Vegan", "Gluten-free"],
+        options=["Tất cả"] + DIETARY_LABELS,
     )
 
     # Số kết quả
