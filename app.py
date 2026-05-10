@@ -171,7 +171,7 @@ def main():
                         df = engine.recipes_df.copy()
                         # Tìm theo tên (case-insensitive, partial match)
                         mask = df["title"].str.contains(
-                            query, case=False, na=False
+                            query, case=False, na=False, regex=False
                         )
                         results = df[mask].copy()
                         results["similarity"] = 1.0  # placeholder

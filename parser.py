@@ -121,10 +121,10 @@ def clean_ingredient(raw: str) -> str:
         r"pack|packs|packet|packets|bag|bags|jar|jars|"
         r"bottle|bottles|clove|cloves|sprig|sprigs|"
         r"knob|stick|sticks|sheet|sheets|block|blocks|"
-        r"large|medium|small|x"
+        r"large|medium|small"
     )
     text = re.sub(
-        rf"^\s*[\d½¼¾⅓⅔⅛⅜⅝⅞/.\-–]+\s*(?:{units})?\s*",
+        rf"^\s*[\d½¼¾⅓⅔⅛⅜⅝⅞/.\-–]+\s*(?:(?:{units})\b)?\s*",
         "", text, flags=re.IGNORECASE
     )
     # Loại bỏ các ký tự đặc biệt ở đầu
@@ -222,7 +222,7 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
 
     # Fallback: tìm từ HTML
     if recipe["prep_time_min"] is None:
-        prep_el = soup.find(string=re.compile(r"prep", re.I))
+        prep_el = soup.find(string=re.compile(r"\bprep\b", re.I))
         if prep_el:
             parent = prep_el.find_parent()
             if parent:
@@ -230,7 +230,8 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
                 recipe["prep_time_min"] = parse_time_to_minutes(time_text)
 
     if recipe["cook_time_min"] is None:
-        cook_el = soup.find(string=re.compile(r"cook", re.I))
+        # Dùng word boundary \b để tránh khớp "cookie", "cookbook"...
+        cook_el = soup.find(string=re.compile(r"\bcook\b", re.I))
         if cook_el:
             parent = cook_el.find_parent()
             if parent:
@@ -326,6 +327,26 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
 
     recipe["dietary_labels"] = ", ".join(dietary_labels)
 
+    # --- 6b. Description và Image URL ---
+    recipe["description"] = ""
+    recipe["image_url"] = ""
+    if schema_data:
+        desc = schema_data.get("description", "")
+        if isinstance(desc, str):
+            recipe["description"] = desc.strip()
+        # Image có thể là string hoặc list/dict
+        img = schema_data.get("image", "")
+        if isinstance(img, str):
+            recipe["image_url"] = img.strip()
+        elif isinstance(img, list) and img:
+            first_img = img[0]
+            if isinstance(first_img, str):
+                recipe["image_url"] = first_img.strip()
+            elif isinstance(first_img, dict):
+                recipe["image_url"] = first_img.get("url", "").strip()
+        elif isinstance(img, dict):
+            recipe["image_url"] = img.get("url", "").strip()
+
     # --- 7. Các bước nấu (instructions) ---
     instructions = []
     if schema_data and "recipeInstructions" in schema_data:
@@ -381,16 +402,23 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
 
 
 def _parse_iso_duration(iso_str: str) -> Optional[int]:
-    """Chuyển ISO 8601 duration (PT1H20M) sang phút."""
+    """
+    Chuyển ISO 8601 duration (PT1H20M) sang phút.
+    Trả về 0 nếu duration hợp lệ nhưng bằng 0 (ví dụ: PT0M).
+    Chỉ trả None khi không parse được.
+    """
     if not iso_str:
         return None
     match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?", iso_str)
     if not match:
         return None
+    # Kiểm tra match có capture được gì không ("PT" thuần không có H/M)
+    if match.group(1) is None and match.group(2) is None:
+        return None
     hours = int(match.group(1)) if match.group(1) else 0
     minutes = int(match.group(2)) if match.group(2) else 0
     total = hours * 60 + minutes
-    return total if total > 0 else None
+    return total
 
 
 def parse_multiple_recipes(urls: List[str],

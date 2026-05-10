@@ -229,6 +229,17 @@ class DietaryClassifier:
             logger.error("Không đủ dữ liệu để huấn luyện!")
             return {}
 
+        # Kiểm tra: cần ít nhất 2 mẫu cho mỗi class
+        positive_count = int(y.sum())
+        negative_count = len(y) - positive_count
+        if positive_count < 2 or negative_count < 2:
+            logger.warning(
+                f"Không đủ đa dạng cho '{self.label_name}': "
+                f"{positive_count} positive, {negative_count} negative. "
+                f"Cần ít nhất 2 mẫu mỗi class."
+            )
+            return {}
+
         # Chia train/test (80/20)
         X_train, X_test, y_train, y_test = train_test_split(
             X, y, test_size=TEST_SIZE, random_state=RANDOM_STATE,

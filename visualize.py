@@ -35,7 +35,12 @@ def plot_difficulty_distribution():
         logger.warning("Không có dữ liệu độ khó.")
         return None
 
-    labels, counts = zip(*data)
+    try:
+        labels, counts = zip(*data)
+    except ValueError:
+        logger.warning("Dữ liệu độ khó không hợp lệ để vẽ biểu đồ.")
+        return None
+
     colors = sns.color_palette("viridis", len(labels))
 
     fig, ax = plt.subplots()
@@ -96,7 +101,12 @@ def plot_top_ingredients(top_n: int = 10):
     if not data:
         return None
 
-    ingredients, counts = zip(*data)
+    try:
+        ingredients, counts = zip(*data)
+    except ValueError:
+        logger.warning("Dữ liệu nguyên liệu không hợp lệ để vẽ biểu đồ.")
+        return None
+
     colors = sns.color_palette("magma_r", len(ingredients))
 
     fig, ax = plt.subplots()
@@ -180,7 +190,11 @@ def plot_dietary_labels():
 
     # Sắp xếp
     sorted_items = sorted(labels_count.items(), key=lambda x: x[1], reverse=True)
-    labels, counts = zip(*sorted_items[:10])
+    try:
+        labels, counts = zip(*sorted_items[:10])
+    except ValueError:
+        logger.warning("Dữ liệu chế độ ăn không hợp lệ để vẽ biểu đồ.")
+        return None
     colors = sns.color_palette("Set2", len(labels))
 
     fig, ax = plt.subplots()
@@ -197,6 +211,50 @@ def plot_dietary_labels():
     plt.tight_layout()
 
     path = os.path.join(CHARTS_DIR, "dietary_labels.png")
+    fig.savefig(path, bbox_inches="tight")
+    plt.close(fig)
+    logger.info(f"Đã lưu biểu đồ: {path}")
+    return path
+
+
+def plot_confusion_matrices():
+    """Vẽ confusion matrix heatmap cho các ML classifiers."""
+    from ml_search import DietaryClassifier
+    from config import DIETARY_LABELS
+
+    results = []
+    for label in DIETARY_LABELS:
+        clf = DietaryClassifier(label_name=label)
+        metrics = clf.train_and_evaluate()
+        if metrics and "confusion_matrix" in metrics:
+            results.append(metrics)
+
+    if not results:
+        logger.warning("Không có kết quả ML để vẽ confusion matrix.")
+        return None
+
+    fig, axes = plt.subplots(1, len(results), figsize=(5 * len(results), 4))
+    if len(results) == 1:
+        axes = [axes]
+
+    for ax, metrics in zip(axes, results):
+        cm = metrics["confusion_matrix"]
+        label = metrics["label"]
+        sns.heatmap(
+            cm, annot=True, fmt="d", cmap="Blues", ax=ax,
+            xticklabels=[f"Non-{label}", label],
+            yticklabels=[f"Non-{label}", label],
+            cbar=False,
+        )
+        acc = metrics.get("accuracy", 0)
+        ax.set_title(f"{label}\nAccuracy: {acc:.1%}", fontweight="bold", fontsize=10)
+        ax.set_xlabel("Predicted")
+        ax.set_ylabel("Actual")
+
+    plt.suptitle("Naive Bayes Classification — Confusion Matrices", fontweight="bold", y=1.02)
+    plt.tight_layout()
+
+    path = os.path.join(CHARTS_DIR, "confusion_matrices.png")
     fig.savefig(path, bbox_inches="tight")
     plt.close(fig)
     logger.info(f"Đã lưu biểu đồ: {path}")
@@ -223,11 +281,16 @@ def generate_all_charts():
         ("Top 10 nguyên liệu", plot_top_ingredients),
         ("Thời gian nấu", plot_prep_cook_time),
         ("Chế độ ăn", plot_dietary_labels),
+        ("Confusion Matrix (ML)", plot_confusion_matrices),
     ]
 
     for name, func in charts:
-        path = func()
-        status = "✓" if path else "✗ (không đủ dữ liệu)"
+        try:
+            path = func()
+            status = "✓" if path else "✗ (không đủ dữ liệu)"
+        except Exception as e:
+            status = f"✗ (lỗi: {e})"
+            logger.error(f"Lỗi vẽ biểu đồ '{name}': {e}")
         print(f"  {name}: {status}")
 
     print(f"\nBiểu đồ được lưu tại: {CHARTS_DIR}")

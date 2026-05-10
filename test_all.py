@@ -96,6 +96,12 @@ class TestParseTimeToMinutes(unittest.TestCase):
         self.assertIsNone(_parse_iso_duration(""))
         self.assertIsNone(_parse_iso_duration("PT"))
 
+    def test_iso_duration_zero(self):
+        """Sửa bug: 'PT0M' → 0 (không phải None). Duration hợp lệ bằng 0."""
+        self.assertEqual(_parse_iso_duration("PT0M"), 0)
+        self.assertEqual(_parse_iso_duration("PT0H0M"), 0)
+        self.assertEqual(_parse_iso_duration("PT0H"), 0)
+
 
 # ============================================================================
 # 2. TEST PARSE - clean_ingredient
@@ -126,6 +132,18 @@ class TestCleanIngredient(unittest.TestCase):
     def test_cloves_unit(self):
         result = clean_ingredient("2 cloves garlic")
         self.assertIn("garlic", result)
+
+    def test_x_prefix_preserved(self):
+        """Sửa bug: nguyên liệu bắt đầu bằng 'x' không bị cắt sai."""
+        # Trước khi sửa: 'x' nằm trong units → cắt thành 'ylitol'
+        result = clean_ingredient("xylitol")
+        self.assertIn("xylitol", result)
+
+    def test_2x_pattern(self):
+        """Pattern '2 x chicken' vẫn hoạt động (loại bỏ '2' nhưng giữ 'chicken')."""
+        result = clean_ingredient("2 x chicken breasts")
+        # Số '2' bị loại, 'x' giữ lại nhưng bị loại bởi regex ký tự đặc biệt đầu
+        self.assertIn("chicken", result)
 
 
 # ============================================================================

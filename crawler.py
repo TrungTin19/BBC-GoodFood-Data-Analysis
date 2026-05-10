@@ -24,7 +24,7 @@ from bs4 import BeautifulSoup
 
 from config import (
     BASE_URL, RECIPES_LIST_URL, REQUEST_DELAY, REQUEST_TIMEOUT,
-    MAX_RETRIES, RETRY_DELAY, DEFAULT_HEADERS, MAX_PAGES, MIN_RECIPES,
+    MAX_RETRIES, RETRY_DELAY, DEFAULT_HEADERS, MIN_RECIPES,
 )
 
 # Đảm bảo console Windows hiển thị UTF-8
@@ -398,15 +398,26 @@ def check_robots_txt() -> dict:
 # ============================================================
 # CÁC HÀM TƯƠNG THÍCH NGƯỢC (cho main.py)
 # ============================================================
+# Cache danh sách sitemap URLs để tránh fetch lại sitemap.xml mỗi lần gọi
+_cached_sitemap_urls: Optional[List[str]] = None
+
+
+def _get_cached_sitemap_urls() -> List[str]:
+    """Lấy danh sách sitemap URLs (cache lần đầu)."""
+    global _cached_sitemap_urls
+    if _cached_sitemap_urls is None:
+        _cached_sitemap_urls = get_recipe_sitemap_urls()
+    return _cached_sitemap_urls
+
+
 def get_total_pages() -> int:
     """Xác định tổng số trang (dùng sitemap thay cho phân trang)."""
-    sitemaps = get_recipe_sitemap_urls()
-    return len(sitemaps)
+    return len(_get_cached_sitemap_urls())
 
 
 def get_recipe_urls_from_page(page_num: int) -> List[str]:
     """Tương thích ngược: lấy URL từ sitemap thứ page_num."""
-    sitemaps = get_recipe_sitemap_urls()
+    sitemaps = _get_cached_sitemap_urls()
     if page_num <= len(sitemaps):
         return get_urls_from_sitemap(sitemaps[page_num - 1])
     return []

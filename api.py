@@ -25,11 +25,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from database import (
     get_all_recipes, get_recipe_by_id, get_ingredients_for_recipe,
     get_recipe_count, get_unique_ingredients_count, get_top_ingredients,
-    get_statistics, create_tables,
+    get_statistics, create_tables, get_recipes_paginated,
 )
 from ml_search import RecipeSearchEngine
 
 logger = logging.getLogger(__name__)
+
+# Đảm bảo database sẵn sàng khi module được import (ví dụ: flask run)
+create_tables()
 
 app = Flask(__name__)
 
@@ -72,16 +75,13 @@ def api_stats():
 # ---------------------------------------------------------------------------
 @app.route("/api/recipes", methods=["GET"])
 def api_recipes():
-    """GET /api/recipes - Danh sách công thức (phân trang)."""
+    """GET /api/recipes - Danh sách công thức (phân trang SQL)."""
     try:
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
 
-        all_recipes = get_all_recipes()
-        total = len(all_recipes)
-        start = (page - 1) * per_page
-        end = start + per_page
-        page_recipes = all_recipes[start:end]
+        # Phân trang ở level SQL (LIMIT/OFFSET) thay vì load toàn bộ
+        page_recipes, total = get_recipes_paginated(page, per_page)
 
         # Thêm danh sách nguyên liệu cho mỗi công thức
         for r in page_recipes:
@@ -153,6 +153,8 @@ def api_search():
                 "difficulty": row.get("difficulty", ""),
                 "prep_time_min": row.get("prep_time_min"),
                 "cook_time_min": row.get("cook_time_min"),
+                "raw_ingredients": row.get("raw_ingredients", ""),
+                "instructions": row.get("instructions", ""),
             })
 
         return jsonify({

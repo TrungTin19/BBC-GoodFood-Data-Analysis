@@ -40,7 +40,7 @@ SAMPLE_RECIPES = [
         "url": "https://www.bbcgoodfood.com/recipes/beef-stew-root-vegetables",
         "prep_time_min": 30,
         "cook_time_min": 120,
-        "difficulty": "Medium",
+        "difficulty": "More effort",
         "rating": 4.5,
         "review_count": 280,
         "dietary_labels": "",
@@ -115,7 +115,7 @@ SAMPLE_RECIPES = [
         "url": "https://www.bbcgoodfood.com/recipes/thai-green-curry",
         "prep_time_min": 20,
         "cook_time_min": 25,
-        "difficulty": "Medium",
+        "difficulty": "More effort",
         "rating": 4.6,
         "review_count": 310,
         "dietary_labels": "Gluten-free",
@@ -130,7 +130,7 @@ SAMPLE_RECIPES = [
         "url": "https://www.bbcgoodfood.com/recipes/chocolate-lava-cake",
         "prep_time_min": 15,
         "cook_time_min": 12,
-        "difficulty": "Medium",
+        "difficulty": "More effort",
         "rating": 4.9,
         "review_count": 650,
         "dietary_labels": "Vegetarian",
@@ -184,14 +184,16 @@ def seed_database():
             recipe_data.get("image_url", ""),
         ))
 
-        recipe_id = cursor.lastrowid
+        # Chỉ insert ingredients khi recipe mới được chèn (rowcount > 0)
+        if cursor.rowcount > 0:
+            recipe_id = cursor.lastrowid
 
-        for ing_name in recipe_data.get("clean_ingredients", []):
-            if ing_name.strip():
-                cursor.execute(
-                    "INSERT INTO ingredients (recipe_id, ingredient) VALUES (?, ?)",
-                    (recipe_id, ing_name.strip()),
-                )
+            for ing_name in recipe_data.get("clean_ingredients", []):
+                if ing_name.strip():
+                    cursor.execute(
+                        "INSERT INTO ingredients (recipe_id, ingredient) VALUES (?, ?)",
+                        (recipe_id, ing_name.strip()),
+                    )
 
     conn.commit()
     conn.close()

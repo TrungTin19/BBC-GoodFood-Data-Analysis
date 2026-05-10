@@ -29,8 +29,11 @@ def get_all(query: str = "SELECT * FROM recipes") -> List[Dict]:
     Truy vấn chung theo câu SQL bất kỳ (tương tự Lab4/utils.py).
     Hữu ích khi cần query linh hoạt mà không cần viết hàm riêng.
 
+    ⚠️ Lưu ý: Không truyền dữ liệu người dùng trực tiếp vào tham số query
+    để tránh SQL injection. Chỉ dùng với câu SQL hardcoded.
+
     Args:
-        query: Câu SQL SELECT
+        query: Câu SQL SELECT (không chứa user input)
 
     Returns:
         Danh sách kết quả dạng list[dict]
@@ -150,7 +153,6 @@ def insert_recipe(recipe_data: Dict[str, Any]) -> Optional[int]:
 
         if cursor.rowcount == 0:
             logger.debug(f"URL đã tồn tại, bỏ qua: {recipe_data['url']}")
-            conn.close()
             return None
 
         recipe_id = cursor.lastrowid
@@ -204,6 +206,28 @@ def get_all_recipes() -> List[Dict]:
     try:
         cursor = conn.execute("SELECT * FROM recipes ORDER BY recipe_id")
         return [dict(row) for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def get_recipes_paginated(page: int = 1, per_page: int = 20) -> Tuple[List[Dict], int]:
+    """
+    Lấy công thức có phân trang bằng SQL LIMIT/OFFSET.
+    Hiệu quả hơn get_all_recipes() khi database lớn.
+
+    Returns:
+        Tuple (danh sách công thức trang hiện tại, tổng số công thức)
+    """
+    conn = get_connection()
+    try:
+        total = conn.execute("SELECT COUNT(*) FROM recipes").fetchone()[0]
+        offset = (page - 1) * per_page
+        cursor = conn.execute(
+            "SELECT * FROM recipes ORDER BY recipe_id LIMIT ? OFFSET ?",
+            (per_page, offset)
+        )
+        recipes = [dict(row) for row in cursor.fetchall()]
+        return recipes, total
     finally:
         conn.close()
 
