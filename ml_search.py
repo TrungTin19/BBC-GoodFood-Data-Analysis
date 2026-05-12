@@ -20,7 +20,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.naive_bayes import MultinomialNB
 from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, cross_val_score
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
     f1_score, classification_report, confusion_matrix
@@ -270,6 +270,13 @@ class DietaryClassifier:
         # Dự đoán
         y_pred = self.pipeline.predict(X_test)
 
+        # ---------------------------------------------------------
+        # NEW: Cross-validation (để đảm bảo tính ổn định)
+        # ---------------------------------------------------------
+        cv_scores = cross_val_score(self.pipeline, X, y, cv=5)
+        cv_mean = round(cv_scores.mean(), 4)
+        logger.info(f"[{self.label_name}] Cross-val scores: {cv_scores}")
+
         # Tính các metric
         # Dùng labels=[0,1] để đảm bảo confusion_matrix luôn 2x2
         cm = confusion_matrix(y_test, y_pred, labels=[0, 1])
@@ -292,6 +299,7 @@ class DietaryClassifier:
             "test_size": len(X_test),
             "positive_count": int(y.sum()),
             "accuracy": round(accuracy_score(y_test, y_pred), 4),
+            "cv_accuracy_mean": cv_mean,
             "precision": round(precision_score(y_test, y_pred, zero_division=0), 4),
             "recall": round(recall_score(y_test, y_pred, zero_division=0), 4),
             "f1_score": round(f1_score(y_test, y_pred, zero_division=0), 4),
@@ -300,7 +308,7 @@ class DietaryClassifier:
         }
 
         logger.info(
-            f"[{self.label_name}] Accuracy: {self.metrics['accuracy']}, "
+            f"[{self.label_name}] Accuracy: {self.metrics['accuracy']}, CV_Mean: {cv_mean}, "
             f"Precision: {self.metrics['precision']}, "
             f"Recall: {self.metrics['recall']}"
         )

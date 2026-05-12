@@ -24,23 +24,20 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
-def get_all(query: str = "SELECT * FROM recipes") -> List[Dict]:
+def get_all(query: str = "SELECT * FROM recipes", params: Tuple = ()) -> List[Dict]:
     """
-    Truy vấn chung theo câu SQL bất kỳ (tương tự Lab4/utils.py).
-    Hữu ích khi cần query linh hoạt mà không cần viết hàm riêng.
-
-    ⚠️ Lưu ý: Không truyền dữ liệu người dùng trực tiếp vào tham số query
-    để tránh SQL injection. Chỉ dùng với câu SQL hardcoded.
-
+    Truy vấn chung theo câu SQL (an toàn hơn với parameterized query).
+    
     Args:
-        query: Câu SQL SELECT (không chứa user input)
+        query: Câu SQL SELECT (vd: "SELECT * FROM recipes WHERE rating > ?")
+        params: Tuple chứa các tham số cho câu SQL
 
     Returns:
         Danh sách kết quả dạng list[dict]
     """
     conn = get_connection()
     try:
-        cursor = conn.execute(query)
+        cursor = conn.execute(query, params)
         return [dict(row) for row in cursor.fetchall()]
     finally:
         conn.close()

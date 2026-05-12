@@ -18,6 +18,7 @@ import os
 import logging
 
 from flask import Flask, jsonify, request
+from flask_cors import CORS
 
 # Đảm bảo import đúng khi chạy từ thư mục dự án
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -35,6 +36,7 @@ logger = logging.getLogger(__name__)
 create_tables()
 
 app = Flask(__name__)
+CORS(app) # Bật CORS cho toàn bộ API
 
 
 # ---------------------------------------------------------------------------

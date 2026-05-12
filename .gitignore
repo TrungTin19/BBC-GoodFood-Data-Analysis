@@ -10,6 +10,9 @@ build/
 data/
 charts/
 logs/
+*.pkl
+*.joblib
+data/models/
 
 # IDE
 .vscode/
