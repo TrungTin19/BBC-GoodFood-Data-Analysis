@@ -125,45 +125,58 @@ st.markdown("""
         border: none !important;
     }
 
-    /* Recipe Card - ADAPTIVE COLORS */
     .recipe-card {
         background: var(--secondary-background-color);
-        padding: 0;
         border-radius: 20px;
         border: 1px solid rgba(128, 128, 128, 0.2);
         margin-bottom: 2rem;
-        transition: all 0.3s ease;
         overflow: hidden;
-        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
-        display: flex;
-        flex-direction: column;
+        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
+        transition: transform 0.3s ease;
     }
     
     .recipe-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
         border-color: var(--primary);
     }
 
-    /* Fix Streamlit column spacing */
-    [data-testid="column"] {
-        padding: 0 !important;
-    }
-
-    .recipe-image-container {
+    /* Layout Table for alignment */
+    .card-layout {
+        display: flex;
+        flex-direction: row;
         width: 100%;
-        height: 240px;
-        overflow: hidden;
-        margin: 0;
-        padding: 0;
-        line-height: 0; /* Remove gap */
     }
 
-    .recipe-image-container img {
+    @media (max-width: 768px) {
+        .card-layout {
+            flex-direction: column;
+        }
+        .card-img-side {
+            width: 100% !important;
+            height: 200px !important;
+        }
+    }
+
+    .card-img-side {
+        width: 35%;
+        min-width: 200px;
+        height: 250px;
+        overflow: hidden;
+        flex-shrink: 0;
+    }
+
+    .card-img-side img {
         width: 100%;
         height: 100%;
         object-fit: cover;
-        display: block;
+    }
+
+    .card-content-side {
+        flex-grow: 1;
+        padding: 1.5rem;
+        display: flex;
+        flex-direction: column;
     }
 
     .recipe-info {
@@ -404,96 +417,91 @@ def main():
                         results = pd.DataFrame()
                 else:
                     # Tìm kiếm theo nguyên liệu (TF-IDF)
-                    results = engine.search_by_ingredients(
-                        query=query,
-                        top_n=top_n,
-                        min_rating=min_rating,
-                        dietary_filter=dietary_filter,
-                    )
+                        results = engine.search_by_ingredients(
+                            query=query,
+                            top_n=top_n,
+                            min_rating=min_rating,
+                            dietary_filter=dietary_filter,
+                        )
 
-            if results.empty:
-                st.info("Không tìm thấy công thức phù hợp. Thử từ khóa khác!")
-            else:
-                st.success(f"Tìm thấy {len(results)} công thức phù hợp!")
+                if results.empty:
+                    st.info("Không tìm thấy công thức phù hợp. Thử từ khóa khác!")
+                else:
+                    st.success(f"Tìm thấy {len(results)} công thức phù hợp!")
 
-                # Hiển thị từng kết quả dạng card
-                for idx, (_, row) in enumerate(results.iterrows(), 1):
-                    with st.container():
-                        st.markdown('<div class="recipe-card animate-fade-in">', unsafe_allow_html=True)
-                        
-                        col_img, col_content = st.columns([1, 2])
-                        
-                        with col_img:
+                    # Hiển thị từng kết quả dạng card
+                    for idx, (_, row) in enumerate(results.iterrows(), 1):
+                        with st.container():
                             img_url = row.get('image_url')
                             if not img_url or not isinstance(img_url, str) or not img_url.startswith("http"):
-                                img_url = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop" # Higher quality fallback
+                                img_url = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop"
                             
-                            st.markdown(f"""
-                            <div class="recipe-image-container">
-                                <img src="{img_url}" alt="{row['title']}">
-                            </div>
-                            """, unsafe_allow_html=True)
-                        
-                        with col_content:
-                            st.markdown('<div class="recipe-info">', unsafe_allow_html=True)
-                            
-                            # Header: Tên món
-                            st.markdown(f'<div class="recipe-title">{row["title"]}</div>', unsafe_allow_html=True)
-                            
-                            # Meta info items
+                            # Rating string
                             r_val = row.get('rating')
                             rating_str = f"⭐ {r_val:.1f}" if pd.notna(r_val) else "⭐ N/A"
+                            
+                            # Difficulty string
                             diff_val = row.get('difficulty')
                             diff = str(diff_val if pd.notna(diff_val) and diff_val else 'Medium').capitalize()
                             
+                            # Time info
                             prep = f"⏱️ {int(row['prep_time_min'])}m" if pd.notna(row.get('prep_time_min')) else ""
                             cook = f"🍳 {int(row['cook_time_min'])}m" if pd.notna(row.get('cook_time_min')) else ""
                             
-                            meta_html = f"""
-                            <div class="recipe-meta">
-                                <div class="meta-item"><b>{rating_str}</b></div>
-                                <div class="meta-item"><b>{diff}</b></div>
-                                {"<div class='meta-item'>" + prep + "</div>" if prep else ""}
-                                {"<div class='meta-item'>" + cook + "</div>" if cook else ""}
-                            </div>
-                            """
-                            st.markdown(meta_html, unsafe_allow_html=True)
-
-                            # Dietary labels as badges
+                            # Dietary badges
                             diets = row.get('dietary_labels', '')
+                            badges_html = ""
                             if diets:
                                 diet_list = [d.strip() for d in diets.split(',') if d.strip()]
-                                badges_html = '<div style="margin-bottom: 1rem;">' + "".join([f'<span class="diet-badge">{d}</span>' for d in diet_list]) + '</div>'
-                                st.markdown(badges_html, unsafe_allow_html=True)
+                                badges_html = "".join([f'<span class="diet-badge">{d}</span>' for d in diet_list])
                             
-                            if search_mode != "🔤 Theo tên món ăn":
-                                st.caption(f"🎯 Similarity Score: {row['similarity']:.4f}")
+                            similarity_html = f'<div style="font-size:0.8rem; color:var(--text-color); opacity:0.6; margin-top:0.5rem;">🎯 Similarity: {row["similarity"]:.4f}</div>' if search_mode != "🔤 Theo tên món ăn" else ""
 
-                            # Link gốc
-                            st.markdown(f"🔗 [View full recipe on BBC Good Food]({row['url']})")
-                            
-                            st.markdown('</div>', unsafe_allow_html=True)
+                            # Header part as pure HTML for perfect layout
+                            st.markdown(f"""
+                            <div class="recipe-card animate-fade-in">
+                                <div class="card-layout">
+                                    <div class="card-img-side">
+                                        <img src="{img_url}" alt="{row['title']}">
+                                    </div>
+                                    <div class="card-content-side">
+                                        <div class="recipe-title">{row['title']}</div>
+                                        <div class="recipe-meta">
+                                            <div class="meta-item"><b>{rating_str}</b></div>
+                                            <div class="meta-item"><b>{diff}</b></div>
+                                            {f'<div class="meta-item">{prep}</div>' if prep else ""}
+                                            {f'<div class="meta-item">{cook}</div>' if cook else ""}
+                                        </div>
+                                        <div style="margin-bottom: 1rem;">{badges_html}</div>
+                                        {similarity_html}
+                                        <div style="margin-top: auto;">
+                                            <a href="{row['url']}" target="_blank" style="text-decoration:none; color:var(--primary); font-weight:600; font-size:0.9rem;">
+                                                🔗 View full recipe on BBC Good Food
+                                            </a>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            """, unsafe_allow_html=True)
 
-                        # Expanders for Ingredients and Instructions
-                        with st.container():
-                            col_e1, col_e2 = st.columns(2)
-                            with col_e1:
-                                raw_ing = row.get("raw_ingredients", "")
-                                if isinstance(raw_ing, str) and raw_ing.strip():
-                                    with st.expander("🥕 **Ingredients List**"):
-                                        ingredients_list = [ing.strip() for ing in raw_ing.split(";") if ing.strip()]
-                                        for ing in ingredients_list:
-                                            st.markdown(f"- {ing}")
-                            
-                            with col_e2:
-                                instructions = row.get("instructions", "")
-                                if isinstance(instructions, str) and instructions.strip():
-                                    with st.expander("📖 **Cooking Steps**"):
-                                        steps = [s.strip() for s in instructions.split("\n") if s.strip()]
-                                        for s in steps:
-                                            st.markdown(s)
-                        
-                        st.markdown('</div>', unsafe_allow_html=True)
+                            # Expanders for Ingredients and Instructions
+                            with st.container():
+                                col_e1, col_e2 = st.columns(2)
+                                with col_e1:
+                                    raw_ing = row.get("raw_ingredients", "")
+                                    if isinstance(raw_ing, str) and raw_ing.strip():
+                                        with st.expander("🥕 **Ingredients List**"):
+                                            ingredients_list = [ing.strip() for ing in raw_ing.split(";") if ing.strip()]
+                                            for ing in ingredients_list:
+                                                st.markdown(f"- {ing}")
+                                
+                                with col_e2:
+                                    instructions = row.get("instructions", "")
+                                    if isinstance(instructions, str) and instructions.strip():
+                                        with st.expander("📖 **Cooking Steps**"):
+                                            steps = [s.strip() for s in instructions.split("\n") if s.strip()]
+                                            for s in steps:
+                                                st.markdown(s)
         else:
             st.info(
                 "👈 Nhập **tên món ăn** hoặc **nguyên liệu** vào thanh bên trái "
