@@ -38,77 +38,206 @@ st.set_page_config(
 # Custom CSS for Premium Look
 st.markdown("""
 <style>
-    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600;700&family=Inter:wght@300;400;500;600&display=swap');
+    
+    :root {
+        --primary: #FF4B2B;
+        --secondary: #FF416C;
+        --accent: #10B981;
+    }
+
+    /* Global Styles & Theming */
+    .stApp {
+        background-color: var(--background-color);
+        color: var(--text-color);
+    }
     
     html, body, [class*="css"] {
+        font-family: 'Inter', sans-serif;
+    }
+    
+    h1, h2, h3, .main-header h1 {
         font-family: 'Outfit', sans-serif;
+        color: var(--text-color);
     }
-    
-    .main-header {
+
+    /* Header Section */
+    .header-container {
+        position: relative;
+        height: 320px;
+        background: url('https://images.unsplash.com/photo-1504674900247-0877df9cc836?q=80&w=2070&auto=format&fit=crop');
+        background-size: cover;
+        background-position: center;
+        border-radius: 24px;
+        margin-bottom: 2rem;
+        overflow: hidden;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.15);
+    }
+
+    .header-container::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: linear-gradient(135deg, rgba(31, 41, 55, 0.7) 0%, rgba(255, 75, 43, 0.4) 100%);
+        z-index: 1;
+    }
+
+    .header-content {
+        position: relative;
+        z-index: 2;
         text-align: center;
-        padding: 2.5rem 0;
-        background: linear-gradient(135deg, #1a2a6c 0%, #b21f1f 50%, #fdbb2d 100%);
-        color: white;
-        border-radius: 15px;
-        margin-bottom: 2.5rem;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+        color: white !important; /* Always white on header */
+        padding: 2rem;
     }
-    
-    .main-header h1 {
-        font-weight: 700;
-        letter-spacing: -0.5px;
+
+    .header-content h1 {
+        font-size: 3.5rem;
+        font-weight: 800;
         margin-bottom: 0.5rem;
+        text-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        letter-spacing: -1px;
+        color: white !important;
     }
-    
-    .main-header p {
-        font-weight: 300;
-        opacity: 0.9;
+
+    /* Tabs Styling */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 10px;
+        background-color: transparent;
     }
-    
-    .recipe-card {
-        background: white;
-        padding: 1.5rem;
+
+    .stTabs [data-baseweb="tab"] {
+        height: 45px;
+        background-color: var(--secondary-background-color);
         border-radius: 12px;
-        border: 1px solid #eee;
-        margin-bottom: 1.5rem;
+        color: var(--text-color);
+        font-weight: 600;
+        padding: 0 24px;
+        border: 1px solid rgba(128, 128, 128, 0.2);
         transition: all 0.3s ease;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.02);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%) !important;
+        color: white !important;
+        border: none !important;
+    }
+
+    /* Recipe Card - ADAPTIVE COLORS */
+    .recipe-card {
+        background: var(--secondary-background-color);
+        padding: 0;
+        border-radius: 20px;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        margin-bottom: 2rem;
+        transition: all 0.3s ease;
+        overflow: hidden;
+        box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+        display: flex;
+        flex-direction: column;
     }
     
     .recipe-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 12px 20px rgba(0,0,0,0.08);
-        border-color: #d1d5db;
+        box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1);
+        border-color: var(--primary);
     }
-    
-    .metric-card {
-        background: #ffffff;
-        padding: 1.2rem;
-        border-radius: 12px;
-        text-align: center;
-        border: 1px solid #f3f4f6;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.04);
+
+    /* Fix Streamlit column spacing */
+    [data-testid="column"] {
+        padding: 0 !important;
     }
-    
+
+    .recipe-image-container {
+        width: 100%;
+        height: 240px;
+        overflow: hidden;
+        margin: 0;
+        padding: 0;
+        line-height: 0; /* Remove gap */
+    }
+
+    .recipe-image-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+        display: block;
+    }
+
+    .recipe-info {
+        padding: 1.5rem;
+        color: var(--text-color);
+    }
+
+    .recipe-title {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.4rem;
+        color: var(--text-color);
+        margin-bottom: 0.75rem;
+        line-height: 1.2;
+    }
+
+    .recipe-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 1rem;
+        font-size: 0.85rem;
+        color: var(--text-color);
+        opacity: 0.8;
+    }
+
+    .meta-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        background: rgba(128, 128, 128, 0.1);
+        padding: 4px 12px;
+        border-radius: 8px;
+        color: var(--text-color);
+        border: 1px solid rgba(128, 128, 128, 0.1);
+    }
+
+    /* Badge styles */
     .diet-badge {
         display: inline-block;
-        padding: 0.2rem 0.6rem;
-        border-radius: 20px;
-        font-size: 0.75rem;
-        font-weight: 600;
+        padding: 4px 12px;
+        border-radius: 9999px;
+        font-size: 0.7rem;
+        font-weight: 700;
         margin-right: 0.5rem;
-        background: #f3f4f6;
-        color: #374151;
+        margin-bottom: 0.5rem;
+        background: linear-gradient(135deg, #10B981 0%, #059669 100%);
+        color: white;
+    }
+
+    /* Sidebar Fix */
+    section[data-testid="stSidebar"] {
+        background-color: var(--secondary-background-color);
     }
     
-    .stButton>button {
-        border-radius: 8px;
-        font-weight: 600;
-        transition: all 0.2s;
+    section[data-testid="stSidebar"] .stMarkdown p {
+        color: var(--text-color);
     }
-    
-    .stButton>button:hover {
-        transform: scale(1.02);
+
+    /* Footer */
+    .footer {
+        text-align: center;
+        padding: 3rem 0;
+        color: var(--text-color);
+        opacity: 0.6;
+        border-top: 1px solid rgba(128, 128, 128, 0.2);
+        margin-top: 4rem;
+    }
+
+    /* Custom Metric styling */
+    [data-testid="stMetricValue"] {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        color: var(--primary-color) !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -141,11 +270,13 @@ def load_classifiers(model_type: str = "nb"):
 # GIAO DIỆN CHÍNH
 # ============================================================
 def main():
-    # Header
-    st.markdown("""
-    <div class="main-header">
-        <h1>🍳 BBC Good Food Recipe Search</h1>
-        <p>Tìm kiếm công thức nấu ăn thông minh bằng TF-IDF & Machine Learning</p>
+    # Header with premium background
+    st.markdown(f"""
+    <div class="header-container animate-fade-in">
+        <div class="header-content">
+            <h1>🍳 BBC Good Food</h1>
+            <p>Smart Recipe Discovery powered by AI & Data Analytics</p>
+        </div>
     </div>
     """, unsafe_allow_html=True)
 
@@ -288,73 +419,79 @@ def main():
                 # Hiển thị từng kết quả dạng card
                 for idx, (_, row) in enumerate(results.iterrows(), 1):
                     with st.container():
-                        st.markdown('<div class="recipe-card">', unsafe_allow_html=True)
+                        st.markdown('<div class="recipe-card animate-fade-in">', unsafe_allow_html=True)
                         
                         col_img, col_content = st.columns([1, 2])
                         
                         with col_img:
                             img_url = row.get('image_url')
-                            if img_url and isinstance(img_url, str) and img_url.startswith("http"):
-                                st.image(img_url, use_container_width=True)
-                            else:
-                                st.image("https://via.placeholder.com/300x200?text=No+Image", use_container_width=True)
+                            if not img_url or not isinstance(img_url, str) or not img_url.startswith("http"):
+                                img_url = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop" # Higher quality fallback
+                            
+                            st.markdown(f"""
+                            <div class="recipe-image-container">
+                                <img src="{img_url}" alt="{row['title']}">
+                            </div>
+                            """, unsafe_allow_html=True)
                         
                         with col_content:
-                            # Header: Tên món + thông tin nhanh
-                            st.markdown(f"### {idx}. {row['title']}")
+                            st.markdown('<div class="recipe-info">', unsafe_allow_html=True)
                             
+                            # Header: Tên món
+                            st.markdown(f'<div class="recipe-title">{row["title"]}</div>', unsafe_allow_html=True)
+                            
+                            # Meta info items
                             r_val = row.get('rating')
-                            rating_str = f"⭐ {r_val:.1f}" if pd.notna(r_val) else "N/A"
-                            diff = row.get('difficulty', '') or 'Medium'
+                            rating_str = f"⭐ {r_val:.1f}" if pd.notna(r_val) else "⭐ N/A"
+                            diff_val = row.get('difficulty')
+                            diff = str(diff_val if pd.notna(diff_val) and diff_val else 'Medium').capitalize()
                             
-                            st.markdown(f"**{rating_str}** | **{diff}**")
+                            prep = f"⏱️ {int(row['prep_time_min'])}m" if pd.notna(row.get('prep_time_min')) else ""
+                            cook = f"🍳 {int(row['cook_time_min'])}m" if pd.notna(row.get('cook_time_min')) else ""
+                            
+                            meta_html = f"""
+                            <div class="recipe-meta">
+                                <div class="meta-item"><b>{rating_str}</b></div>
+                                <div class="meta-item"><b>{diff}</b></div>
+                                {"<div class='meta-item'>" + prep + "</div>" if prep else ""}
+                                {"<div class='meta-item'>" + cook + "</div>" if cook else ""}
+                            </div>
+                            """
+                            st.markdown(meta_html, unsafe_allow_html=True)
 
-                            # Thông tin thời gian + labels
-                            info_parts = []
-                            if pd.notna(row.get('prep_time_min')):
-                                info_parts.append(f"⏱️ Prep: {int(row['prep_time_min'])}m")
-                            if pd.notna(row.get('cook_time_min')):
-                                info_parts.append(f"🍳 Cook: {int(row['cook_time_min'])}m")
-                            if pd.notna(row.get('review_count')) and row['review_count']:
-                                info_parts.append(f"📝 {int(row['review_count'])} reviews")
-                            
-                            if info_parts:
-                                st.write(" | ".join(info_parts))
-                                
                             # Dietary labels as badges
                             diets = row.get('dietary_labels', '')
                             if diets:
                                 diet_list = [d.strip() for d in diets.split(',') if d.strip()]
-                                badges_html = "".join([f'<span class="diet-badge">{d}</span>' for d in diet_list])
+                                badges_html = '<div style="margin-bottom: 1rem;">' + "".join([f'<span class="diet-badge">{d}</span>' for d in diet_list]) + '</div>'
                                 st.markdown(badges_html, unsafe_allow_html=True)
                             
                             if search_mode != "🔤 Theo tên món ăn":
-                                st.caption(f"🎯 Similarity: {row['similarity']:.4f}")
+                                st.caption(f"🎯 Similarity Score: {row['similarity']:.4f}")
 
                             # Link gốc
-                            st.markdown(f"🔗 [Xem trên BBC Good Food]({row['url']})")
+                            st.markdown(f"🔗 [View full recipe on BBC Good Food]({row['url']})")
+                            
+                            st.markdown('</div>', unsafe_allow_html=True)
 
-                        # Nguyên liệu & Công thức (Expanders)
-                        col_exp1, col_exp2 = st.columns(2)
-                        with col_exp1:
-                            raw_ing = row.get("raw_ingredients", "")
-                            if isinstance(raw_ing, str) and raw_ing.strip():
-                                with st.expander("🥕 **Nguyên liệu**"):
-                                    ingredients_list = [
-                                        ing.strip() for ing in raw_ing.split(";")
-                                        if ing.strip()
-                                    ]
-                                    for ing in ingredients_list:
-                                        st.markdown(f"- {ing}")
-                        
-                        with col_exp2:
-                            instructions = row.get("instructions", "")
-                            if isinstance(instructions, str) and instructions.strip():
-                                with st.expander("📖 **Công thức nấu**"):
-                                    steps = instructions.split("\n")
-                                    for step in steps:
-                                        if step.strip():
-                                            st.markdown(f"{step.strip()}")
+                        # Expanders for Ingredients and Instructions
+                        with st.container():
+                            col_e1, col_e2 = st.columns(2)
+                            with col_e1:
+                                raw_ing = row.get("raw_ingredients", "")
+                                if isinstance(raw_ing, str) and raw_ing.strip():
+                                    with st.expander("🥕 **Ingredients List**"):
+                                        ingredients_list = [ing.strip() for ing in raw_ing.split(";") if ing.strip()]
+                                        for ing in ingredients_list:
+                                            st.markdown(f"- {ing}")
+                            
+                            with col_e2:
+                                instructions = row.get("instructions", "")
+                                if isinstance(instructions, str) and instructions.strip():
+                                    with st.expander("📖 **Cooking Steps**"):
+                                        steps = [s.strip() for s in instructions.split("\n") if s.strip()]
+                                        for s in steps:
+                                            st.markdown(s)
                         
                         st.markdown('</div>', unsafe_allow_html=True)
         else:
@@ -374,17 +511,30 @@ def main():
 
         stats = get_statistics()
 
-        # Metrics row
-        cols = st.columns(4)
-        cols[0].metric("Tổng công thức", stats.get("total_recipes", 0))
-        cols[1].metric("Nguyên liệu duy nhất", stats.get("unique_ingredients", 0))
-        cols[2].metric("Rating trung bình", stats.get("avg_rating", 0))
-        cols[3].metric("Thời gian nấu TB", f"{stats.get('avg_cook_time', 0):.0f} phút")
+        # Metrics row with custom styling
+        st.markdown('<div class="animate-fade-in">', unsafe_allow_html=True)
+        
+        m_col1, m_col2, m_col3, m_col4 = st.columns(4)
+        with m_col1:
+            st.markdown(f'<div class="metric-container"><div class="metric-value">{stats.get("total_recipes", 0)}</div><div class="metric-label">Total Recipes</div></div>', unsafe_allow_html=True)
+        with m_col2:
+            st.markdown(f'<div class="metric-container"><div class="metric-value">{stats.get("unique_ingredients", 0)}</div><div class="metric-label">Unique Ingredients</div></div>', unsafe_allow_html=True)
+        with m_col3:
+            st.markdown(f'<div class="metric-container"><div class="metric-value">{stats.get("avg_rating", 0):.1f}</div><div class="metric-label">Avg Rating</div></div>', unsafe_allow_html=True)
+        with m_col4:
+            st.markdown(f'<div class="metric-container"><div class="metric-value">{stats.get("avg_cook_time", 0):.0f}m</div><div class="metric-label">Avg Cook Time</div></div>', unsafe_allow_html=True)
 
-        cols2 = st.columns(3)
-        cols2[0].metric("🥬 Vegetarian", stats.get("vegetarian_count", 0))
-        cols2[1].metric("🌱 Vegan", stats.get("vegan_count", 0))
-        cols2[2].metric("🌾 Gluten-free", stats.get("gluten_free_count", 0))
+        st.markdown('<br>', unsafe_allow_html=True)
+
+        d_col1, d_col2, d_col3 = st.columns(3)
+        with d_col1:
+            st.markdown(f'<div class="metric-container" style="border-bottom: 4px solid #10B981;"><div class="metric-value" style="color: #10B981;">{stats.get("vegetarian_count", 0)}</div><div class="metric-label">🥬 Vegetarian</div></div>', unsafe_allow_html=True)
+        with d_col2:
+            st.markdown(f'<div class="metric-container" style="border-bottom: 4px solid #059669;"><div class="metric-value" style="color: #059669;">{stats.get("vegan_count", 0)}</div><div class="metric-label">🌱 Vegan</div></div>', unsafe_allow_html=True)
+        with d_col3:
+            st.markdown(f'<div class="metric-container" style="border-bottom: 4px solid #3B82F6;"><div class="metric-value" style="color: #3B82F6;">{stats.get("gluten_free_count", 0)}</div><div class="metric-label">🌾 Gluten-free</div></div>', unsafe_allow_html=True)
+        
+        st.markdown('</div>', unsafe_allow_html=True)
 
         # Biểu đồ
         st.subheader("📈 Biểu đồ")
@@ -452,8 +602,13 @@ def main():
                                     <p style="margin:0; font-size:0.8rem; color:#6b7280;">Tin cậy: {res['confidence']:.1%}</p>
                                 </div>
                                 """, unsafe_allow_html=True)
-            else:
-                st.warning("Vui lòng nhập nguyên liệu!")
+    # Footer
+    st.markdown("""
+    <div class="footer animate-fade-in">
+        <p>© 2026 BBC Good Food Analyzer • Created with ❤️ and Streamlit</p>
+        <p style="font-size: 0.75rem; opacity: 0.7;">Data Analytics Final Project • Smart Recipe Discovery Engine</p>
+    </div>
+    """, unsafe_allow_html=True)
 
 
 if __name__ == "__main__":
