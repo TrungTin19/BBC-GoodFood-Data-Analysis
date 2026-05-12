@@ -120,12 +120,19 @@ def create_tables():
         conn.close()
 
 
-def insert_recipe(recipe_data: Dict[str, Any]) -> Optional[int]:
+def insert_recipe(recipe_data: Dict[str, Any], conn: Optional[sqlite3.Connection] = None) -> Optional[int]:
     """
     Chèn một công thức vào database. Bỏ qua nếu URL đã tồn tại.
-    Trả về recipe_id nếu thành công, None nếu trùng lặp.
+    Trả về recipe_id nếu thành công, None nếu trùng lặp hoặc lỗi.
+    
+    Args:
+        recipe_data: Dữ liệu công thức
+        conn: Kết nối hiện có (nếu dùng chung trong transaction)
     """
-    conn = get_connection()
+    is_external_conn = conn is not None
+    if not is_external_conn:
+        conn = get_connection()
+    
     try:
         cursor = conn.cursor()
 
@@ -159,34 +166,58 @@ def insert_recipe(recipe_data: Dict[str, Any]) -> Optional[int]:
 
         # Chèn nguyên liệu sạch vào bảng ingredients
         clean_ingredients = recipe_data.get("clean_ingredients", [])
-        for ing in clean_ingredients:
-            if ing.strip():
-                cursor.execute(
-                    "INSERT INTO ingredients (recipe_id, ingredient) VALUES (?, ?)",
-                    (recipe_id, ing.strip())
-                )
+        if clean_ingredients:
+            cursor.executemany(
+                "INSERT INTO ingredients (recipe_id, ingredient) VALUES (?, ?)",
+                [(recipe_id, ing.strip()) for ing in clean_ingredients if ing.strip()]
+            )
 
-        conn.commit()
+        if not is_external_conn:
+            conn.commit()
+            
         logger.debug(f"Đã lưu: {recipe_data.get('title', 'N/A')[:40]} (ID={recipe_id})")
         return recipe_id
 
     except sqlite3.Error as e:
-        logger.error(f"Lỗi chèn công thức: {e}")
-        conn.rollback()
+        logger.error(f"Lỗi chèn công thức ({recipe_data.get('url')}): {e}")
+        if not is_external_conn:
+            conn.rollback()
         return None
     finally:
+        if not is_external_conn:
+            conn.close()
+
+
+def insert_recipe_batch(recipes: List[Dict]) -> int:
+    """
+    Chèn nhiều công thức trong một transaction duy nhất.
+    Nhanh hơn nhiều so với chèn từng cái một.
+    """
+    if not recipes:
+        return 0
+        
+    conn = get_connection()
+    count = 0
+    try:
+        # Tắt autocommit để bắt đầu transaction
+        conn.execute("BEGIN TRANSACTION")
+        for r in recipes:
+            result = insert_recipe(r, conn=conn)
+            if result is not None:
+                count += 1
+        conn.commit()
+        logger.info(f"Đã chèn batch {count}/{len(recipes)} công thức mới.")
+    except sqlite3.Error as e:
+        conn.rollback()
+        logger.error(f"Lỗi khi chèn batch: {e}")
+    finally:
         conn.close()
+    return count
 
 
 def insert_many_recipes(recipes: List[Dict]) -> int:
-    """Chèn nhiều công thức. Trả về số công thức mới được chèn."""
-    count = 0
-    for r in recipes:
-        result = insert_recipe(r)
-        if result is not None:
-            count += 1
-    logger.info(f"Đã chèn {count}/{len(recipes)} công thức mới.")
-    return count
+    """Chèn nhiều công thức bằng cơ chế batching."""
+    return insert_recipe_batch(recipes)
 
 
 def get_existing_urls() -> set:

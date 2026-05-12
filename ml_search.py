@@ -19,6 +19,7 @@ import pandas as pd
 from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
 from sklearn.naive_bayes import MultinomialNB
+from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     accuracy_score, precision_score, recall_score,
@@ -149,7 +150,7 @@ class RecipeSearchEngine:
         top_results = results_df.head(top_n)[
             ["title", "url", "rating", "review_count", "difficulty",
              "dietary_labels", "similarity", "prep_time_min", "cook_time_min",
-             "raw_ingredients", "instructions"]
+             "raw_ingredients", "instructions", "image_url"]
         ].copy()
 
         # Làm tròn similarity
@@ -160,30 +161,38 @@ class RecipeSearchEngine:
 
 
 # ============================================================
-# 2. PHÂN LOẠI CHẾ ĐỘ ĂN BẰNG NAIVE BAYES
+# 2. PHÂN LOẠI CHẾ ĐỘ ĂN BẰNG MACHINE LEARNING
 # ============================================================
 class DietaryClassifier:
     """
-    Phân loại chế độ ăn bằng Multinomial Naive Bayes.
+    Phân loại chế độ ăn bằng Multinomial Naive Bayes hoặc Logistic Regression.
 
     Sử dụng raw_ingredients làm features, dietary_labels làm nhãn.
     Hỗ trợ phân loại: Vegetarian, Vegan, Gluten-free.
     """
 
-    def __init__(self, label_name: str = "Vegetarian"):
+    def __init__(self, label_name: str = "Vegetarian", model_type: str = "nb"):
         """
         Khởi tạo classifier.
         Args:
             label_name: Tên nhãn cần phân loại (vd: 'Vegetarian')
+            model_type: Loại mô hình ('nb' hoặc 'logistic')
         """
         self.label_name = label_name
+        self.model_type = model_type.lower()
+        
+        if self.model_type == "logistic":
+            clf = LogisticRegression(random_state=RANDOM_STATE, max_iter=1000)
+        else:
+            clf = MultinomialNB()
+
         self.pipeline = Pipeline([
             ("vectorizer", CountVectorizer(
                 stop_words="english",
                 max_features=5000,
                 ngram_range=(1, 2),
             )),
-            ("classifier", MultinomialNB()),
+            ("classifier", clf),
         ])
         self.is_trained = False
         self.metrics = {}
@@ -199,6 +208,9 @@ class DietaryClassifier:
         df = pd.DataFrame(recipes)
 
         # Lọc bỏ công thức không có nguyên liệu
+        if df.empty:
+            return pd.Series(), pd.Series()
+            
         df = df[df["raw_ingredients"].notna() & (df["raw_ingredients"] != "")]
 
         # Tạo nhãn nhị phân
@@ -208,6 +220,7 @@ class DietaryClassifier:
 
         X = df["raw_ingredients"]
         y = df["label"]
+
 
         logger.info(
             f"Dữ liệu cho '{self.label_name}': "
@@ -308,26 +321,28 @@ class DietaryClassifier:
 
     def save_model(self):
         """Lưu model ra file."""
-        path = os.path.join(MODEL_DIR, f"nb_{self.label_name.lower()}.pkl")
+        path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
         with open(path, "wb") as f:
             pickle.dump(self.pipeline, f)
-        logger.info(f"Đã lưu model: {path}")
+        logger.info(f"Đã lưu model ({self.model_type}): {path}")
 
     def load_model(self):
         """Tải model từ file."""
-        path = os.path.join(MODEL_DIR, f"nb_{self.label_name.lower()}.pkl")
+        path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
         if os.path.exists(path):
             with open(path, "rb") as f:
                 self.pipeline = pickle.load(f)
             self.is_trained = True
-            logger.info(f"Đã tải model: {path}")
+            logger.info(f"Đã tải model ({self.model_type}): {path}")
         else:
-            logger.warning(f"Không tìm thấy model: {path}")
+            logger.warning(f"Không tìm thấy model ({self.model_type}): {path}")
 
 
-def train_all_classifiers() -> List[Dict]:
+def train_all_classifiers(model_type: str = "nb") -> List[Dict]:
     """
     Huấn luyện tất cả các classifier (Vegetarian, Vegan, Gluten-free).
+    Args:
+        model_type: 'nb' hoặc 'logistic'
     Returns: Danh sách kết quả đánh giá cho từng classifier.
     """
     labels = DIETARY_LABELS
@@ -335,10 +350,10 @@ def train_all_classifiers() -> List[Dict]:
 
     for label in labels:
         print(f"\n{'='*50}")
-        print(f"Huấn luyện classifier: {label}")
+        print(f"Huấn luyện classifier: {label} ({model_type.upper()})")
         print(f"{'='*50}")
 
-        clf = DietaryClassifier(label_name=label)
+        clf = DietaryClassifier(label_name=label, model_type=model_type)
         metrics = clf.train_and_evaluate()
 
         if metrics:

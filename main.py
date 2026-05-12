@@ -112,22 +112,29 @@ def phase_4_5_parse_and_save(urls):
     BATCH_SIZE = 50
     total_inserted = 0
     total_failed = 0
+    batch_recipes = []
 
     print(f"  Bắt đầu parse {total} công thức (lưu mỗi batch {BATCH_SIZE})...")
     start = time.time()
+
+    from database import insert_recipe_batch
 
     for i, url in enumerate(urls, 1):
         try:
             data = extract_recipe_data(url)
             if data:
-                rid = insert_recipe(data)
-                if rid:
-                    total_inserted += 1
+                batch_recipes.append(data)
             else:
                 total_failed += 1
         except Exception as e:
             logger.error(f"Lỗi parse {url}: {e}")
             total_failed += 1
+
+        # Lưu theo batch hoặc khi kết thúc
+        if len(batch_recipes) >= BATCH_SIZE or (i == total and batch_recipes):
+            inserted = insert_recipe_batch(batch_recipes)
+            total_inserted += inserted
+            batch_recipes = []
 
         # In tiến trình mỗi 20 công thức
         if i % 20 == 0 or i == total:
@@ -136,7 +143,7 @@ def phase_4_5_parse_and_save(urls):
             eta = (total - i) / speed if speed > 0 else 0
             print(
                 f"  [{i}/{total}] {i/total*100:.1f}% | "
-                f"OK: {total_inserted} | Lỗi: {total_failed} | "
+                f"Đã lưu: {total_inserted} | Lỗi: {total_failed} | "
                 f"ETA: {eta/60:.1f} phút"
             )
 
@@ -160,9 +167,10 @@ def phase_6_train_ml():
 
     from ml_search import train_all_classifiers, RecipeSearchEngine
 
-    # Huấn luyện classifiers
-    print("\n--- Naive Bayes Classifiers ---")
-    results = train_all_classifiers()
+    # Huấn luyện classifiers (cả NB và Logistic)
+    for m_type in ["nb", "logistic"]:
+        print(f"\n--- {m_type.upper()} Classifiers ---")
+        train_all_classifiers(model_type=m_type)
 
     # Test search engine
     print("\n--- TF-IDF Search Engine ---")

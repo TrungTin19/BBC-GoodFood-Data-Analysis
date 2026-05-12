@@ -161,7 +161,8 @@ def get_urls_from_sitemap(sitemap_url: str) -> List[str]:
         # Bỏ: /premium/, /recipes/collection/, /recipes/category/,
         #      /recipes/vegetarian/..., URL có trailing slash
         if "/recipes/" in url and "/premium/" not in url:
-            path = url.replace("https://www.bbcgoodfood.com", "")
+            from urllib.parse import urlparse
+            path = urlparse(url).path
             # Chỉ match dạng /recipes/slug (1 level sau /recipes/)
             if re.match(r"^/recipes/[a-z0-9][a-z0-9\-]*[a-z0-9]$", path):
                 urls.append(url)

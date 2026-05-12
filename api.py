@@ -155,6 +155,8 @@ def api_search():
                 "cook_time_min": row.get("cook_time_min"),
                 "raw_ingredients": row.get("raw_ingredients", ""),
                 "instructions": row.get("instructions", ""),
+                "description": row.get("description", ""),
+                "image_url": row.get("image_url", ""),
             })
 
         return jsonify({

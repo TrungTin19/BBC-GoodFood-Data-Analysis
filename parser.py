@@ -73,32 +73,42 @@ def debug_selectors(url: str) -> None:
 def parse_time_to_minutes(time_str: str) -> Optional[int]:
     """
     Chuyển đổi chuỗi thời gian sang phút.
-    Ví dụ: '1 hr 20 mins' → 80, '30 mins' → 30, '2 hrs' → 120, '0 mins' → 0
-
-    Sửa bug: trả về 0 khi thời gian hợp lệ bằng 0 (ví dụ: "0 minutes").
-    Chỉ trả None khi không parse được.
+    Ví dụ: '1 hr 20 mins' → 80, '30 mins' → 30, '2 hrs' → 120
+    Tránh nhận nhầm 'Serves 4' thành 4 phút.
     """
     if not time_str:
         return None
-    time_str = time_str.lower().strip()
+    
+    # Nếu chứa "serves", loại bỏ phần đó để tránh parse nhầm số người ăn
+    time_str = re.sub(r"serves\s*\d+", "", time_str.lower()).strip()
+    
     total = 0
     found = False
-    # Tìm giờ
+    
+    # Tìm giờ (hr, hour, hrs, hours)
     hr_match = re.search(r"(\d+)\s*(?:hr|hour)s?", time_str)
     if hr_match:
         total += int(hr_match.group(1)) * 60
         found = True
-    # Tìm phút
+    
+    # Tìm phút (min, minute, mins, minutes)
     min_match = re.search(r"(\d+)\s*(?:min|minute)s?", time_str)
     if min_match:
         total += int(min_match.group(1))
         found = True
+        
     # Nếu chỉ có số thuần (giả sử là phút)
     if not found:
-        num_match = re.search(r"(\d+)", time_str)
+        num_match = re.search(r"^(\d+)$", time_str)
         if num_match:
             total = int(num_match.group(1))
             found = True
+        elif re.search(r"\d+", time_str) and any(kw in time_str for kw in ["time", "prep", "cook", "ready"]):
+            num_match = re.search(r"(\d+)", time_str)
+            if num_match:
+                total = int(num_match.group(1))
+                found = True
+                
     return total if found else None
 
 
