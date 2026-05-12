@@ -12,15 +12,17 @@ Dự án xây dựng hệ thống **thu thập, làm sạch, lưu trữ và tìm
 
 ### Tính năng chính
 
-- 🕷️ **Crawl** 1000+ công thức từ BBC Good Food qua **Sitemap XML** và **Collection pages** (tuân thủ `robots.txt`)
-- 🧹 **Làm sạch** nguyên liệu: loại bỏ số lượng, đơn vị, hướng dẫn chế biến
-- 📖 **Trích xuất** đầy đủ công thức nấu (instructions) từ JSON-LD và HTML
-- 💾 **Lưu trữ** vào SQLite với 2 bảng `recipes` + `ingredients` (khóa ngoại, chống trùng)
-- 🔍 **Tìm kiếm thông minh** bằng TF-IDF + Cosine Similarity theo nguyên liệu người dùng nhập
-- 🔤 **Tìm kiếm theo tên** món ăn (partial match, case-insensitive)
-- 🤖 **Phân loại chế độ ăn** (Vegetarian, Vegan, Gluten-free) bằng Multinomial Naive Bayes
-- 📊 **Biểu đồ thống kê** (phân bố độ khó, rating, top nguyên liệu, thời gian nấu, chế độ ăn)
-- 🖥️ **Giao diện web Streamlit** để tìm kiếm và khám phá công thức
+- 🕷️ **Crawl** 1000+ công thức từ BBC Good Food qua **Sitemap XML** và **Collection pages** (tuân thủ `robots.txt`, hỗ trợ resume)
+- 🧹 **Làm sạch** nguyên liệu: loại bỏ số lượng, đơn vị, hướng dẫn chế biến bằng Regex chuyên sâu
+- 📖 **Trích xuất** đầy đủ công thức nấu (instructions) từ JSON-LD và HTML fallback
+- 💾 **Lưu trữ** vào SQLite (Normalized, WAL mode, Parameterized Queries chống SQL Injection)
+- 🔍 **Tìm kiếm thông minh** bằng TF-IDF + Cosine Similarity theo nguyên liệu
+- 🔤 **Tìm kiếm theo tên** món ăn (Partial match, Theme-aware UI)
+- 🤖 **Phân loại chế độ ăn** (Vegetarian, Vegan, Gluten-free) bằng **Naive Bayes** & **Logistic Regression**
+- 🧪 **Đánh giá mô hình**: Sử dụng **5-Fold Cross-Validation** để đảm bảo độ ổn định
+- 🌐 **REST API**: Cung cấp các endpoint Flask (hỗ trợ CORS) để tích hợp hệ thống khác
+- 📊 **Biểu đồ thống kê**: Trực quan hóa dữ liệu bằng Matplotlib/Seaborn
+- 🖥️ **Giao diện Premium**: UI Streamlit hiện đại, tự động thích ứng Light/Dark mode, layout Flexbox chuẩn xác
 
 ---
 
@@ -34,13 +36,14 @@ Do_An/
 ├── database.py         # Quản lý SQLite (tạo bảng, CRUD, thống kê)
 ├── ml_search.py        # TF-IDF search engine + Naive Bayes classifiers
 ├── visualize.py        # Tạo biểu đồ matplotlib/seaborn
-├── app.py              # Giao diện Streamlit
+├── app.py              # Giao diện Streamlit (Premium UI)
+├── api.py              # REST API Flask (CORS enabled)
 ├── main.py             # Script điều phối chính (7 phases)
-├── requirements.txt    # Thư viện cần cài đặt
-├── Tai_Lieu.md         # Tài liệu tham khảo
-├── data/               # (tự tạo) Chứa recipes.db và models/
-├── charts/             # (tự tạo) Chứa biểu đồ PNG
-└── logs/               # (tự tạo) Chứa file log
+├── requirements.txt    # Thư viện cần cài đặt (Flask-CORS, etc.)
+├── .gitignore          # Cấu hình bỏ qua file model (.pkl) và data/
+├── data/               # Chứa recipes.db và models/ (đã được ignore)
+├── charts/             # Chứa biểu đồ PNG tự động tạo
+└── logs/               # Log quá trình crawl và training
 ```
 
 ---
@@ -201,13 +204,25 @@ Hệ thống sử dụng **2 phương pháp** thu thập URL bổ trợ lẫn nh
 3. Biến đổi query của người dùng thành vector TF-IDF
 4. Tính Cosine Similarity → sắp xếp giảm dần → trả về top N kết quả
 
-### Naive Bayes (Phân loại chế độ ăn)
+### Naive Bayes & Logistic Regression (Phân loại chế độ ăn)
 
 - **Input**: `raw_ingredients` (văn bản nguyên liệu thô)
-- **Labels**: nhãn nhị phân (`is_vegetarian`, `is_vegan`, `is_gluten_free`)
-- **Pipeline**: `CountVectorizer` → `MultinomialNB`
-- **Chia dữ liệu**: 80% train / 20% test (stratified)
-- **Đánh giá**: Accuracy, Precision, Recall, F1-Score, Confusion Matrix
+- **Labels**: Nhãn nhị phân cho từng loại chế độ ăn.
+- **Mô hình**:
+    - **Multinomial Naive Bayes**: Nhanh, hiệu quả với dữ liệu văn bản.
+    - **Logistic Regression**: Trọng số tối ưu, capture tương quan tốt hơn.
+- **Đánh giá nâng cao**:
+    - **5-Fold Cross-Validation**: Đánh giá độ ổn định trên toàn bộ tập dữ liệu.
+    - **Metrics**: Accuracy, Precision, Recall, F1-Score, Confusion Matrix.
+- **Lưu trữ**: Model được đóng gói dạng `.pkl` để tái sử dụng nhanh.
+
+### REST API (Flask)
+
+Dự án cung cấp hệ thống API mạnh mẽ tại cổng `5000`:
+- `GET /api/stats`: Thống kê tổng quan.
+- `GET /api/recipes`: Danh sách món ăn (Phân trang SQL).
+- `GET /api/search?q=...`: Tìm kiếm TF-IDF.
+- **Bảo mật**: Hỗ trợ **CORS** cho phép các ứng dụng Frontend khác truy cập.
 
 ---
 
@@ -248,7 +263,9 @@ Sau khi chạy pipeline, các biểu đồ được lưu trong thư mục `chart
 
 | Thành viên | Nhiệm vụ |
 |------------|----------|
-| A | Crawl danh sách & phân trang, kiểm soát trùng lặp URL |
-| B | Parse trang chi tiết, làm sạch nguyên liệu, chuyển đổi thời gian |
-| C | Thiết kế CSDL, TF-IDF search, Naive Bayes, giao diện Streamlit |
-| Cả nhóm | Viết báo cáo, thiết kế slide, thuyết trình |
+| **Crawl & Data** | Thu thập 1000+ URL (Sitemap/Collection), xử lý Session reuse, Exponential backoff. |
+| **Parser & Cleaning** | Trích xuất JSON-LD, làm sạch nguyên liệu bằng Regex, xử lý ISO 8601 duration. |
+| **Backend & ML** | Thiết kế CSDL (WAL mode), TF-IDF Search, Naive Bayes & Logistic Regression, 5-Fold Cross-Validation. |
+| **API & Security** | Phát triển Flask API, tích hợp CORS, Parameterized Queries bảo mật. |
+| **Frontend UI** | Giao diện Streamlit Premium, Theme-aware (Light/Dark), Flexbox layout, Visualize data. |
+| **Cả nhóm** | Kiểm thử (Test Suite), Viết báo cáo, thuyết trình. |
