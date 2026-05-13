@@ -328,22 +328,34 @@ class DietaryClassifier:
         return int(pred), float(max(proba))
 
     def save_model(self):
-        """Lưu model ra file."""
+        """Lưu model và metrics ra file."""
         path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
+        data = {
+            "pipeline": self.pipeline,
+            "metrics": self.metrics
+        }
         with open(path, "wb") as f:
-            pickle.dump(self.pipeline, f)
-        logger.info(f"Đã lưu model ({self.model_type}): {path}")
+            pickle.dump(data, f)
+        logger.info(f"Đã lưu model & metrics ({self.model_type}): {path}")
 
     def load_model(self):
-        """Tải model từ file."""
+        """Tải model và metrics từ file."""
         path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
         if os.path.exists(path):
             with open(path, "rb") as f:
-                self.pipeline = pickle.load(f)
+                data = pickle.load(f)
+                if isinstance(data, dict) and "pipeline" in data:
+                    self.pipeline = data["pipeline"]
+                    self.metrics = data.get("metrics", {})
+                else:
+                    # Tương thích với format cũ (chỉ có pipeline)
+                    self.pipeline = data
+                    self.metrics = {}
             self.is_trained = True
             logger.info(f"Đã tải model ({self.model_type}): {path}")
         else:
             logger.warning(f"Không tìm thấy model ({self.model_type}): {path}")
+
 
 
 def train_all_classifiers(model_type: str = "nb") -> List[Dict]:

@@ -382,12 +382,17 @@ def get_statistics() -> Dict[str, Any]:
         stats["min_rating"] = row[1]
         stats["max_rating"] = row[2]
 
-        # Thời gian trung bình
+        # Thời gian trung bình (lọc bỏ các giá trị bất thường > 500 phút độc lập cho mỗi cột)
         row = conn.execute(
-            "SELECT AVG(prep_time_min), AVG(cook_time_min) FROM recipes"
+            """SELECT 
+               AVG(CASE WHEN prep_time_min > 0 AND prep_time_min < 500 THEN prep_time_min END),
+               AVG(CASE WHEN cook_time_min > 0 AND cook_time_min < 500 THEN cook_time_min END)
+               FROM recipes"""
         ).fetchone()
-        stats["avg_prep_time"] = round(row[0], 1) if row[0] else 0
-        stats["avg_cook_time"] = round(row[1], 1) if row[1] else 0
+        stats["avg_prep_time"] = round(row[0], 1) if row and row[0] else 0
+        stats["avg_cook_time"] = round(row[1], 1) if row and row[1] else 0
+
+
 
         # Số công thức có dietary labels
         stats["vegetarian_count"] = conn.execute(

@@ -457,32 +457,39 @@ def main():
                             
                             similarity_html = f'<div style="font-size:0.8rem; color:var(--text-color); opacity:0.6; margin-top:0.5rem;">🎯 Similarity: {row["similarity"]:.4f}</div>' if search_mode != "🔤 Theo tên món ăn" else ""
 
-                            # Header part as pure HTML for perfect layout
-                            st.markdown(f"""
-                            <div class="recipe-card animate-fade-in">
-                                <div class="card-layout">
-                                    <div class="card-img-side">
-                                        <img src="{img_url}" alt="{row['title']}">
-                                    </div>
-                                    <div class="card-content-side">
-                                        <div class="recipe-title">{row['title']}</div>
-                                        <div class="recipe-meta">
-                                            <div class="meta-item"><b>{rating_str}</b></div>
-                                            <div class="meta-item"><b>{diff}</b></div>
-                                            {f'<div class="meta-item">{prep}</div>' if prep else ""}
-                                            {f'<div class="meta-item">{cook}</div>' if cook else ""}
-                                        </div>
-                                        <div style="margin-bottom: 1rem;">{badges_html}</div>
-                                        {similarity_html}
-                                        <div style="margin-top: auto;">
-                                            <a href="{row['url']}" target="_blank" style="text-decoration:none; color:var(--primary); font-weight:600; font-size:0.9rem;">
-                                                🔗 View full recipe on BBC Good Food
-                                            </a>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                            """, unsafe_allow_html=True)
+                            # Construct the HTML safely without newlines that could break Markdown parsing
+                            html_content = f"""
+<div class="recipe-card animate-fade-in">
+<div class="card-layout">
+<div class="card-img-side">
+<img src="{img_url}" alt="{row['title']}">
+</div>
+<div class="card-content-side">
+<div class="recipe-title">{row['title']}</div>
+<div class="recipe-meta">
+<div class="meta-item"><b>{rating_str}</b></div>
+<div class="meta-item"><b>{diff}</b></div>
+{f'<div class="meta-item">{prep}</div>' if prep else ""}
+{f'<div class="meta-item">{cook}</div>' if cook else ""}
+</div>
+<div style="margin-bottom: 1rem;">{badges_html}</div>
+{similarity_html}
+<div style="margin-top: auto;">
+<a href="{row['url']}" target="_blank" style="text-decoration:none; color:var(--primary); font-weight:600; font-size:0.9rem;">
+🔗 View full recipe on BBC Good Food
+</a>
+</div>
+</div>
+</div>
+</div>
+"""
+                            # Remove empty lines from the string to prevent markdown parser bugs
+                            html_content = "\n".join([line for line in html_content.split('\n') if line.strip() != ''])
+                            
+                            st.markdown(html_content, unsafe_allow_html=True)
+
+
+
 
                             # Expanders for Ingredients and Instructions
                             with st.container():
