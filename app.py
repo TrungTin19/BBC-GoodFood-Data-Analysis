@@ -89,7 +89,7 @@ st.markdown("""
         position: relative;
         z-index: 2;
         text-align: center;
-        color: white !important; /* Always white on header */
+        color: white !important;
         padding: 2rem;
     }
 
@@ -102,46 +102,97 @@ st.markdown("""
         color: white !important;
     }
 
-    /* Tabs Styling */
-    .stTabs [data-baseweb="tab-list"] {
-        gap: 10px;
-        background-color: transparent;
-    }
-
-    .stTabs [data-baseweb="tab"] {
-        height: 45px;
-        background-color: var(--secondary-background-color);
-        border-radius: 12px;
-        color: var(--text-color);
-        font-weight: 600;
-        padding: 0 24px;
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        transition: all 0.3s ease;
-    }
-
-    .stTabs [aria-selected="true"] {
-        background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%) !important;
-        color: white !important;
-        border: none !important;
-    }
-
-    .recipe-card {
+    /* Metric Containers for Tab 2 */
+    .metric-container {
         background: var(--secondary-background-color);
-        border-radius: 20px;
-        border: 1px solid rgba(128, 128, 128, 0.2);
-        margin-bottom: 2rem;
-        overflow: hidden;
-        box-shadow: 0 4px 15px rgba(0, 0, 0, 0.05);
-        transition: transform 0.3s ease;
+        padding: 1.5rem;
+        border-radius: 16px;
+        border: 1px solid rgba(128, 128, 128, 0.1);
+        text-align: center;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.03);
+        transition: all 0.3s ease;
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
     }
-    
-    .recipe-card:hover {
-        transform: translateY(-5px);
-        box-shadow: 0 10px 25px rgba(0, 0, 0, 0.1);
+
+    .metric-container:hover {
+        transform: translateY(-3px);
+        box-shadow: 0 8px 20px rgba(0, 0, 0, 0.08);
         border-color: var(--primary);
     }
 
-    /* Layout Table for alignment */
+    .metric-value {
+        font-family: 'Outfit', sans-serif;
+        font-size: 2.2rem;
+        font-weight: 800;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        margin-bottom: 0.25rem;
+    }
+
+    .metric-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-color);
+        opacity: 0.7;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    /* Animation */
+    @keyframes fadeIn {
+        from { opacity: 0; transform: translateY(10px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .animate-fade-in {
+        animation: fadeIn 0.6s ease-out forwards;
+    }
+
+    /* Tabs Styling Enhancement */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 12px;
+        margin-bottom: 2rem;
+    }
+
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background-color: var(--secondary-background-color);
+        border-radius: 14px;
+        color: var(--text-color);
+        font-weight: 600;
+        padding: 0 30px;
+        border: 1px solid rgba(128, 128, 128, 0.15);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, var(--primary) 0%, var(--secondary) 100%) !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0 8px 15px rgba(255, 75, 43, 0.25);
+    }
+
+    /* Recipe Card Polishing */
+    .recipe-card {
+        background: var(--secondary-background-color);
+        border-radius: 24px;
+        border: 1px solid rgba(128, 128, 128, 0.12);
+        margin-bottom: 2.5rem;
+        overflow: hidden;
+        box-shadow: 0 10px 30px rgba(0, 0, 0, 0.04);
+        transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    }
+    
+    .recipe-card:hover {
+        transform: translateY(-8px) scale(1.01);
+        box-shadow: 0 20px 40px rgba(0, 0, 0, 0.12);
+        border-color: var(--primary);
+    }
+
     .card-layout {
         display: flex;
         flex-direction: row;
@@ -159,9 +210,8 @@ st.markdown("""
     }
 
     .card-img-side {
-        width: 35%;
-        min-width: 200px;
-        height: 250px;
+        width: 38%;
+        height: 280px;
         overflow: hidden;
         flex-shrink: 0;
     }
@@ -177,20 +227,6 @@ st.markdown("""
         padding: 1.5rem;
         display: flex;
         flex-direction: column;
-    }
-
-    .recipe-info {
-        padding: 1.5rem;
-        color: var(--text-color);
-    }
-
-    .recipe-title {
-        font-family: 'Outfit', sans-serif;
-        font-weight: 700;
-        font-size: 1.4rem;
-        color: var(--text-color);
-        margin-bottom: 0.75rem;
-        line-height: 1.2;
     }
 
     .recipe-meta {
@@ -214,7 +250,16 @@ st.markdown("""
         border: 1px solid rgba(128, 128, 128, 0.1);
     }
 
-    /* Badge styles */
+    .recipe-title {
+        font-family: 'Outfit', sans-serif;
+        font-weight: 700;
+        font-size: 1.6rem;
+        color: var(--text-color);
+        margin-bottom: 0.75rem;
+        line-height: 1.2;
+        letter-spacing: -0.5px;
+    }
+
     .diet-badge {
         display: inline-block;
         padding: 4px 12px;
@@ -227,16 +272,40 @@ st.markdown("""
         color: white;
     }
 
-    /* Sidebar Fix */
+    .match-badge {
+        position: absolute;
+        top: 15px;
+        left: 15px;
+        background: linear-gradient(135deg, #F59E0B 0%, #D97706 100%);
+        color: white;
+        padding: 6px 14px;
+        border-radius: 12px;
+        font-size: 0.8rem;
+        font-weight: 700;
+        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        border: 1px solid rgba(255, 255, 255, 0.2);
+        transition: all 0.3s ease;
+    }
+
+    .match-badge:hover {
+        transform: scale(1.05);
+        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.6);
+    }
+
+    /* Sidebar Polishing */
     section[data-testid="stSidebar"] {
-        background-color: var(--secondary-background-color);
+        background-image: linear-gradient(180deg, var(--secondary-background-color) 0%, rgba(255, 75, 43, 0.05) 100%);
+        border-right: 1px solid rgba(128, 128, 128, 0.1);
     }
     
     section[data-testid="stSidebar"] .stMarkdown p {
         color: var(--text-color);
     }
 
-    /* Footer */
     .footer {
         text-align: center;
         padding: 3rem 0;
@@ -245,14 +314,8 @@ st.markdown("""
         border-top: 1px solid rgba(128, 128, 128, 0.2);
         margin-top: 4rem;
     }
-
-    /* Custom Metric styling */
-    [data-testid="stMetricValue"] {
-        font-family: 'Outfit', sans-serif;
-        font-weight: 700;
-        color: var(--primary-color) !important;
-    }
 </style>
+
 """, unsafe_allow_html=True)
 
 
@@ -455,11 +518,23 @@ def main():
                                 diet_list = [d.strip() for d in diets.split(',') if d.strip()]
                                 badges_html = "".join([f'<span class="diet-badge">{d}</span>' for d in diet_list])
                             
-                            similarity_html = f'<div style="font-size:0.8rem; color:var(--text-color); opacity:0.6; margin-top:0.5rem;">🎯 Similarity: {row["similarity"]:.4f}</div>' if search_mode != "🔤 Theo tên món ăn" else ""
+                            # Match badge HTML
+                            match_html = ""
+                            if search_mode != "🔤 Theo tên món ăn" and "match_count" in row:
+                                m_count = int(row["match_count"])
+                                matched_list = row.get("matched_ingredients", "")
+                                match_html = f"""
+                                <div class="match-badge" title="Matched: {matched_list}">
+                                    🔍 {m_count} matching ingredients
+                                </div>
+                                """
 
-                            # Construct the HTML safely without newlines that could break Markdown parsing
+                            similarity_html = f'<div style="font-size:0.8rem; color:var(--text-color); opacity:0.6; margin-top:0.5rem;">🎯 Relevance Score: {row["similarity"]:.4f}</div>' if search_mode != "🔤 Theo tên món ăn" else ""
+
+                            # Construct the HTML safely
                             html_content = f"""
-<div class="recipe-card animate-fade-in">
+<div class="recipe-card animate-fade-in" style="position: relative;">
+{match_html}
 <div class="card-layout">
 <div class="card-img-side">
 <img src="{img_url}" alt="{row['title']}">

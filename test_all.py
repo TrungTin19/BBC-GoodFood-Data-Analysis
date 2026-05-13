@@ -307,6 +307,59 @@ class TestEdgeCases(unittest.TestCase):
 
 
 # ============================================================================
+# 6. TEST ML - RecipeSearchEngine
+# ============================================================================
+class TestMLSearch(unittest.TestCase):
+    """Kiểm tra logic tìm kiếm TF-IDF."""
+
+    def setUp(self):
+        self.db_fd, self.db_path = _make_temp_db()
+        self.original_db_path = database.DB_PATH
+        _use_db(self.db_path)
+        database.create_tables()
+        
+        # Thêm dữ liệu mẫu
+        database.insert_recipe({
+            "title": "Chicken Curry",
+            "url": "https://example.com/1",
+            "clean_ingredients": ["chicken", "curry powder", "onion"],
+        })
+        database.insert_recipe({
+            "title": "Tomato Pasta",
+            "url": "https://example.com/2",
+            "clean_ingredients": ["pasta", "tomato", "garlic", "basil"],
+        })
+
+    def tearDown(self):
+        _restore_db(self.original_db_path)
+        os.close(self.db_fd)
+        os.unlink(self.db_path)
+
+    def test_search_engine_build_and_search(self):
+        """Build index và tìm kiếm cơ bản."""
+        from ml_search import RecipeSearchEngine
+        engine = RecipeSearchEngine()
+        engine.build_index()
+        
+        self.assertTrue(engine.is_fitted)
+        self.assertEqual(len(engine.recipes_df), 2)
+        
+        # Tìm chicken -> Chicken Curry phải đứng đầu
+        results = engine.search_by_ingredients("chicken")
+        self.assertFalse(results.empty)
+        self.assertEqual(results.iloc[0]["title"], "Chicken Curry")
+        
+    def test_search_no_match(self):
+        """Tìm kiếm không có kết quả."""
+        from ml_search import RecipeSearchEngine
+        engine = RecipeSearchEngine()
+        engine.build_index()
+        
+        results = engine.search_by_ingredients("chocolate")
+        self.assertTrue(results.empty)
+
+
+# ============================================================================
 # CHẠY TESTS
 # ============================================================================
 if __name__ == "__main__":

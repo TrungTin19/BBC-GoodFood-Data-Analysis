@@ -11,6 +11,21 @@ Chức năng:
 import logging
 import pickle
 import os
+import sys
+import io
+
+# Đảm bảo console Windows hiển thị UTF-8 đúng
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
+if sys.stderr.encoding != "utf-8":
+    try:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
+
 from typing import List, Dict, Optional, Tuple, Any
 
 # pyrefly: ignore [missing-import]
@@ -115,8 +130,13 @@ class RecipeSearchEngine:
             logger.error("Chưa xây dựng chỉ mục! Gọi build_index() trước.")
             return pd.DataFrame()
 
+        # Tiền xử lý query: tách thành danh sách các từ khóa nguyên liệu
+        query_terms = [t.lower().strip() for t in query.split() if t.strip()]
+        if not query_terms:
+            return pd.DataFrame()
+
         # Biến đổi query thành vector TF-IDF
-        query_vec = self.vectorizer.transform([query.lower()])
+        query_vec = self.vectorizer.transform([" ".join(query_terms)])
 
         # Tính Cosine Similarity giữa query và tất cả công thức
         similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
@@ -124,6 +144,17 @@ class RecipeSearchEngine:
         # Thêm cột similarity vào DataFrame
         results_df = self.recipes_df.copy()
         results_df["similarity"] = similarities
+
+        # --- TÍNH TOÁN MATCH COUNT (Số nguyên liệu khớp) ---
+        # Chúng ta kiểm tra từng từ khóa trong query có xuất hiện trong ingredients_text không
+        def calculate_matches(ing_text):
+            ing_text_lower = str(ing_text).lower()
+            matched = [term for term in query_terms if term in ing_text_lower]
+            return len(matched), ", ".join(matched)
+
+        match_results = results_df["ingredients_text"].apply(calculate_matches)
+        results_df["match_count"] = match_results.apply(lambda x: x[0])
+        results_df["matched_ingredients"] = match_results.apply(lambda x: x[1])
 
         # Lọc theo rating tối thiểu
         if min_rating > 0:
@@ -140,16 +171,20 @@ class RecipeSearchEngine:
                 )
             ]
 
-        # Lọc bỏ kết quả có similarity = 0
+        # Lọc bỏ kết quả có similarity = 0 (không khớp từ nào)
         results_df = results_df[results_df["similarity"] > 0]
 
-        # Sắp xếp theo similarity giảm dần
-        results_df = results_df.sort_values("similarity", ascending=False)
+        # Sắp xếp theo match_count giảm dần TRƯỚC, sau đó mới đến similarity
+        results_df = results_df.sort_values(
+            by=["match_count", "similarity"], 
+            ascending=[False, False]
+        )
 
         # Lấy top_n kết quả
         top_results = results_df.head(top_n)[
             ["title", "url", "rating", "review_count", "difficulty",
-             "dietary_labels", "similarity", "prep_time_min", "cook_time_min",
+             "dietary_labels", "similarity", "match_count", "matched_ingredients",
+             "prep_time_min", "cook_time_min",
              "raw_ingredients", "instructions", "image_url"]
         ].copy()
 

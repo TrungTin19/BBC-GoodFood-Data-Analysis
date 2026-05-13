@@ -8,6 +8,21 @@ top 10 nguyên liệu phổ biến, và các thống kê tổng hợp.
 
 import os
 import logging
+import sys
+import io
+
+# Đảm bảo console Windows hiển thị UTF-8 đúng
+if sys.stdout.encoding != "utf-8":
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
+if sys.stderr.encoding != "utf-8":
+    try:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
+
 import matplotlib
 matplotlib.use("Agg")  # Backend không cần GUI
 import matplotlib.pyplot as plt
