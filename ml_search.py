@@ -9,7 +9,7 @@ Chức năng:
 """
 
 import logging
-import pickle
+import joblib
 import os
 import sys
 import io
@@ -43,6 +43,7 @@ from sklearn.metrics import (
 from sklearn.pipeline import Pipeline
 
 from config import TEST_SIZE, RANDOM_STATE, DEFAULT_TOP_N, DATA_DIR, DIETARY_LABELS
+import database
 from database import get_recipes_with_ingredients, get_all_recipes
 
 logger = logging.getLogger(__name__)
@@ -106,6 +107,13 @@ class RecipeSearchEngine:
             f"Chỉ mục TF-IDF: {self.tfidf_matrix.shape[0]} công thức, "
             f"{self.tfidf_matrix.shape[1]} features"
         )
+
+    def is_stale(self) -> bool:
+        """Kiểm tra xem chỉ mục có bị cũ so với database không."""
+        if self.recipes_df is None:
+            return True
+        db_count = database.get_recipe_count()
+        return db_count > len(self.recipes_df)
 
     def search_by_ingredients(
         self,
@@ -239,8 +247,12 @@ class DietaryClassifier:
         Returns:
             Tuple (X: raw_ingredients text, y: nhãn nhị phân 0/1)
         """
-        recipes = get_all_recipes()
-        df = pd.DataFrame(recipes)
+        conn = database.get_connection()
+        try:
+            cursor = conn.execute("SELECT raw_ingredients, dietary_labels FROM recipes")
+            df = pd.DataFrame([dict(row) for row in cursor.fetchall()])
+        finally:
+            conn.close()
 
         # Lọc bỏ công thức không có nguyên liệu
         if df.empty:
@@ -369,23 +381,21 @@ class DietaryClassifier:
             "pipeline": self.pipeline,
             "metrics": self.metrics
         }
-        with open(path, "wb") as f:
-            pickle.dump(data, f)
+        joblib.dump(data, path)
         logger.info(f"Đã lưu model & metrics ({self.model_type}): {path}")
 
     def load_model(self):
         """Tải model và metrics từ file."""
         path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
         if os.path.exists(path):
-            with open(path, "rb") as f:
-                data = pickle.load(f)
-                if isinstance(data, dict) and "pipeline" in data:
-                    self.pipeline = data["pipeline"]
-                    self.metrics = data.get("metrics", {})
-                else:
-                    # Tương thích với format cũ (chỉ có pipeline)
-                    self.pipeline = data
-                    self.metrics = {}
+            data = joblib.load(path)
+            if isinstance(data, dict) and "pipeline" in data:
+                self.pipeline = data["pipeline"]
+                self.metrics = data.get("metrics", {})
+            else:
+                # Tương thích với format cũ (chỉ có pipeline)
+                self.pipeline = data
+                self.metrics = {}
             self.is_trained = True
             logger.info(f"Đã tải model ({self.model_type}): {path}")
         else:

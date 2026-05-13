@@ -323,10 +323,18 @@ st.markdown("""
 # KHỞI TẠO
 # ============================================================
 @st.cache_resource
+def get_cached_search_engine():
+    """Khởi tạo engine duy nhất."""
+    return RecipeSearchEngine()
+
 def load_search_engine():
-    """Tải và cache search engine."""
-    engine = RecipeSearchEngine()
-    engine.build_index()
+    """Tải và cập nhật search engine nếu cần."""
+    engine = get_cached_search_engine()
+    if not engine.is_fitted:
+        engine.build_index()
+    elif engine.is_stale():
+        with st.spinner("Phát hiện dữ liệu mới, đang cập nhật chỉ mục tìm kiếm..."):
+            engine.build_index()
     return engine
 
 

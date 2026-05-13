@@ -133,12 +133,16 @@ def clean_ingredient(raw: str) -> str:
         r"knob|stick|sticks|sheet|sheets|block|blocks|"
         r"large|medium|small"
     )
+    # Biến các đơn vị thành pattern có word boundary \b đơn vị \b
+    unit_list = units.split('|')
+    units_pattern = "|".join([rf"\b{u}\b" for u in unit_list])
+    
     text = re.sub(
-        rf"^\s*[\d½¼¾⅓⅔⅛⅜⅝⅞/.\-–]+\s*(?:(?:{units})\b)?\s*",
+        rf"^\s*[\d½¼¾⅓⅔⅛⅜⅝⅞/.\-–]+\s*(?:(?:{units_pattern})\b)?\s*",
         "", text, flags=re.IGNORECASE
     )
-    # Loại bỏ các ký tự đặc biệt ở đầu
-    text = re.sub(r"^[^a-zA-Z]+", "", text)
+    # Loại bỏ các ký tự đặc biệt ở đầu (trừ chữ cái và số)
+    text = re.sub(r"^[^a-zA-Z0-9]+", "", text)
     # Chuẩn hóa khoảng trắng
     text = re.sub(r"\s+", " ", text).strip()
     return text.lower()
@@ -419,15 +423,20 @@ def _parse_iso_duration(iso_str: str) -> Optional[int]:
     """
     if not iso_str:
         return None
-    match = re.match(r"PT(?:(\d+)H)?(?:(\d+)M)?", iso_str)
+    # Regex hỗ trợ Days, Hours, Minutes (ví dụ: P1DT2H30M hoặc PT1H20M)
+    match = re.match(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?", iso_str)
     if not match:
         return None
-    # Kiểm tra match có capture được gì không ("PT" thuần không có H/M)
-    if match.group(1) is None and match.group(2) is None:
+        
+    days = int(match.group(1)) if match.group(1) else 0
+    hours = int(match.group(2)) if match.group(2) else 0
+    minutes = int(match.group(3)) if match.group(3) else 0
+    
+    total = days * 1440 + hours * 60 + minutes
+    # Nếu tất cả đều 0 và chuỗi không phải dạng "PT0M" hay tương tự thì có thể là parse sai
+    if total == 0 and not any(match.groups()):
         return None
-    hours = int(match.group(1)) if match.group(1) else 0
-    minutes = int(match.group(2)) if match.group(2) else 0
-    total = hours * 60 + minutes
+        
     return total
 
 

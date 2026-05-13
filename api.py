@@ -27,6 +27,7 @@ from database import (
     get_all_recipes, get_recipe_by_id, get_ingredients_for_recipe,
     get_recipe_count, get_unique_ingredients_count, get_top_ingredients,
     get_statistics, create_tables, get_recipes_paginated,
+    get_ingredients_for_recipes, search_recipes_by_name,
 )
 from ml_search import RecipeSearchEngine
 
@@ -46,10 +47,13 @@ _search_engine = None
 
 
 def _get_search_engine() -> RecipeSearchEngine:
-    """Khởi tạo hoặc trả về search engine đã có."""
+    """Khởi tạo hoặc trả về search engine đã có, tự động rebuild nếu stale."""
     global _search_engine
     if _search_engine is None:
         _search_engine = RecipeSearchEngine()
+        _search_engine.build_index()
+    elif _search_engine.is_stale():
+        logger.info("Chỉ mục cũ, đang tự động rebuild...")
         _search_engine.build_index()
     return _search_engine
 
@@ -69,7 +73,7 @@ def api_stats():
         return jsonify(stats), 200
     except Exception as e:
         logger.error(f"Lỗi stats: {e}")
-        return jsonify({"message": f"Lỗi: {str(e)}"}), 500
+        return jsonify({"message": "Lỗi hệ thống khi lấy thống kê"}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -85,9 +89,11 @@ def api_recipes():
         # Phân trang ở level SQL (LIMIT/OFFSET) thay vì load toàn bộ
         page_recipes, total = get_recipes_paginated(page, per_page)
 
-        # Thêm danh sách nguyên liệu cho mỗi công thức
+        # Thêm danh sách nguyên liệu cho mỗi công thức (Batch để tránh N+1)
+        recipe_ids = [r["recipe_id"] for r in page_recipes]
+        all_ingredients = get_ingredients_for_recipes(recipe_ids)
         for r in page_recipes:
-            r["ingredients"] = get_ingredients_for_recipe(r["recipe_id"])
+            r["ingredients"] = all_ingredients.get(r["recipe_id"], [])
 
         return jsonify({
             "recipes": page_recipes,
@@ -98,7 +104,7 @@ def api_recipes():
         }), 200
     except Exception as e:
         logger.error(f"Lỗi get_recipes: {e}")
-        return jsonify({"message": f"Lỗi: {str(e)}"}), 500
+        return jsonify({"message": "Lỗi hệ thống khi lấy danh sách công thức"}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -115,7 +121,7 @@ def api_recipe_detail(recipe_id):
         return jsonify(recipe), 200
     except Exception as e:
         logger.error(f"Lỗi get_recipe: {e}")
-        return jsonify({"message": f"Lỗi: {str(e)}"}), 500
+        return jsonify({"message": "Lỗi hệ thống khi lấy chi tiết công thức"}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -168,7 +174,7 @@ def api_search():
         }), 200
     except Exception as e:
         logger.error(f"Lỗi search: {e}")
-        return jsonify({"message": f"Lỗi: {str(e)}"}), 500
+        return jsonify({"message": "Lỗi hệ thống khi tìm kiếm theo nguyên liệu"}), 500
 
 
 # ---------------------------------------------------------------------------
@@ -184,15 +190,14 @@ def api_search_name():
         if not query.strip():
             return jsonify({"message": "Thiếu tham số 'q' (tên món ăn)"}), 400
 
-        all_recipes = get_all_recipes()
-        matched = [
-            r for r in all_recipes
-            if query.lower() in (r.get("title") or "").lower()
-        ][:top_n]
+        # Tìm kiếm theo tên (SQL LIKE)
+        matched = search_recipes_by_name(query, top_n)
 
-        # Thêm nguyên liệu
+        # Thêm nguyên liệu (Batch)
+        recipe_ids = [r["recipe_id"] for r in matched]
+        all_ingredients = get_ingredients_for_recipes(recipe_ids)
         for r in matched:
-            r["ingredients"] = get_ingredients_for_recipe(r["recipe_id"])
+            r["ingredients"] = all_ingredients.get(r["recipe_id"], [])
 
         return jsonify({
             "results": matched,
@@ -201,7 +206,7 @@ def api_search_name():
         }), 200
     except Exception as e:
         logger.error(f"Lỗi search_name: {e}")
-        return jsonify({"message": f"Lỗi: {str(e)}"}), 500
+        return jsonify({"message": "Lỗi hệ thống khi tìm kiếm theo tên"}), 500
 
 
 # ---------------------------------------------------------------------------

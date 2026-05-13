@@ -310,13 +310,34 @@ def get_recipe_by_id(recipe_id: int) -> Optional[Dict]:
 
 def get_ingredients_for_recipe(recipe_id: int) -> List[str]:
     """Lấy danh sách nguyên liệu cho một công thức."""
+    return get_ingredients_for_recipes([recipe_id]).get(recipe_id, [])
+
+
+def get_ingredients_for_recipes(recipe_ids: List[int]) -> Dict[int, List[str]]:
+    """
+    Lấy danh sách nguyên liệu cho nhiều công thức cùng lúc (tránh N+1).
+    Returns: Dict {recipe_id: [ingredient1, ingredient2, ...]}
+    """
+    if not recipe_ids:
+        return {}
+        
     conn = get_connection()
     try:
+        # Tạo placeholder ?, ?, ? dựa trên số lượng recipe_ids
+        placeholders = ", ".join(["?"] * len(recipe_ids))
         cursor = conn.execute(
-            "SELECT ingredient FROM ingredients WHERE recipe_id = ? ORDER BY id",
-            (recipe_id,),
+            f"SELECT recipe_id, ingredient FROM ingredients WHERE recipe_id IN ({placeholders}) ORDER BY id",
+            recipe_ids,
         )
-        return [row["ingredient"] for row in cursor.fetchall()]
+        
+        result = {}
+        for row in cursor.fetchall():
+            rid = row["recipe_id"]
+            ing = row["ingredient"]
+            if rid not in result:
+                result[rid] = []
+            result[rid].append(ing)
+        return result
     finally:
         conn.close()
 
@@ -355,6 +376,21 @@ def get_top_ingredients(top_n: int = 10) -> List[Tuple[str, int]]:
             LIMIT ?
         """, (top_n,))
         return [(row["ingredient"], row["cnt"]) for row in cursor.fetchall()]
+    finally:
+        conn.close()
+
+
+def search_recipes_by_name(query: str, top_n: int = 10) -> List[Dict]:
+    """
+    Tìm kiếm công thức theo tên bằng SQL LIKE (hiệu quả hơn load-all-to-RAM).
+    """
+    conn = get_connection()
+    try:
+        cursor = conn.execute(
+            "SELECT * FROM recipes WHERE title LIKE ? LIMIT ?",
+            (f"%{query}%", top_n)
+        )
+        return [dict(row) for row in cursor.fetchall()]
     finally:
         conn.close()
 
