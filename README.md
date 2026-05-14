@@ -34,12 +34,14 @@ Do_An/
 ├── crawler.py          # Thu thập URL công thức (Sitemap XML + Collection pages)
 ├── parser.py           # Trích xuất & làm sạch dữ liệu từ HTML/JSON-LD
 ├── database.py         # Quản lý SQLite (tạo bảng, CRUD, thống kê)
-├── ml_search.py        # TF-IDF search engine + Naive Bayes classifiers
+├── ml_search.py        # TF-IDF search engine + Naive Bayes/Logistic Regression
 ├── visualize.py        # Tạo biểu đồ matplotlib/seaborn
 ├── app.py              # Giao diện Streamlit (Premium UI)
 ├── api.py              # REST API Flask (CORS enabled)
 ├── main.py             # Script điều phối chính (7 phases)
-├── requirements.txt    # Thư viện cần cài đặt (Flask-CORS, etc.)
+├── seed_data.py        # Dữ liệu mẫu 8 công thức (demo không cần crawl)
+├── test_all.py         # Test suite (31 unit tests)
+├── requirements.txt    # Thư viện cần cài đặt
 ├── .gitignore          # Cấu hình bỏ qua file model (.pkl) và data/
 ├── data/               # Chứa recipes.db và models/ (đã được ignore)
 ├── charts/             # Chứa biểu đồ PNG tự động tạo
@@ -68,10 +70,12 @@ Các thư viện chính:
 | `requests` | Gửi HTTP request |
 | `beautifulsoup4` | Parse HTML |
 | `lxml` | Parse XML (sitemap) |
-| `pandas` | Xử lý dữ liệu |
-| `scikit-learn` | TF-IDF, Naive Bayes, đánh giá mô hình |
+| `pandas` / `numpy` | Xử lý dữ liệu |
+| `scikit-learn` | TF-IDF, Naive Bayes, Logistic Regression, đánh giá mô hình |
+| `joblib` | Lưu/tải model ML (.pkl) |
 | `matplotlib` / `seaborn` | Trực quan hóa |
 | `streamlit` | Giao diện web |
+| `flask` / `flask-cors` | REST API server |
 | `sqlite3` | Cơ sở dữ liệu (built-in) |
 
 ---
@@ -93,7 +97,7 @@ Pipeline thực hiện 7 bước tự động:
 | 3 | Thu thập URL công thức từ Sitemap XML + Collection pages |
 | 4 | Parse dữ liệu chi tiết từng công thức (JSON-LD + HTML) |
 | 5 | Lưu vào database (batch, chống trùng) |
-| 6 | Huấn luyện mô hình ML (Naive Bayes) |
+| 6 | Huấn luyện mô hình ML (Naive Bayes & Logistic Regression) |
 | 7 | Tạo biểu đồ thống kê |
 
 ### 2. Tùy chọn dòng lệnh
@@ -107,6 +111,15 @@ python main.py --skip-ml
 
 # Bỏ qua tạo biểu đồ
 python main.py --skip-charts
+
+# Chèn dữ liệu mẫu (demo không cần crawl)
+python main.py --seed
+
+# Khởi động REST API server
+python main.py --server
+
+# Chạy test suite
+python main.py --test
 ```
 
 ### 3. Chạy giao diện Streamlit
@@ -164,6 +177,9 @@ Giao diện gồm 3 tab:
 | `dietary_labels` | TEXT | | Nhãn chế độ ăn (phân cách bằng dấu phẩy) |
 | `raw_ingredients` | TEXT | | Nguyên liệu thô (dùng cho ML) |
 | `instructions` | TEXT | | Các bước nấu ăn chi tiết |
+| `description` | TEXT | | Mô tả ngắn về công thức |
+| `image_url` | TEXT | | Đường dẫn ảnh đại diện |
+| `created_at` | TIMESTAMP | DEFAULT CURRENT_TIMESTAMP | Thời điểm thêm vào DB |
 
 ### Bảng `ingredients`
 
@@ -219,10 +235,16 @@ Hệ thống sử dụng **2 phương pháp** thu thập URL bổ trợ lẫn nh
 ### REST API (Flask)
 
 Dự án cung cấp hệ thống API mạnh mẽ tại cổng `5000`:
-- `GET /api/stats`: Thống kê tổng quan.
-- `GET /api/recipes`: Danh sách món ăn (Phân trang SQL).
-- `GET /api/search?q=...`: Tìm kiếm TF-IDF.
-- **Bảo mật**: Hỗ trợ **CORS** cho phép các ứng dụng Frontend khác truy cập.
+
+| Endpoint | Mô tả |
+|----------|-------|
+| `GET /api/stats` | Thống kê tổng quan |
+| `GET /api/recipes?page=1&per_page=20` | Danh sách công thức (phân trang SQL) |
+| `GET /api/recipes/<id>` | Chi tiết một công thức |
+| `GET /api/search?q=chicken&top_n=10` | Tìm kiếm theo nguyên liệu (TF-IDF) |
+| `GET /api/search-name?q=pasta` | Tìm kiếm theo tên món ăn |
+
+- **Bảo mật**: CORS restrictive (chỉ cho phép Streamlit origin), thread-safe search engine.
 
 ---
 
@@ -237,6 +259,7 @@ Sau khi chạy pipeline, các biểu đồ được lưu trong thư mục `chart
 | `top_ingredients.png` | Top 10 nguyên liệu phổ biến nhất |
 | `time_distribution.png` | Phân bố thời gian prep/cook |
 | `dietary_labels.png` | Phân bố nhãn chế độ ăn |
+| `confusion_matrices.png` | Confusion Matrix cho ML classifiers |
 
 ---
 

@@ -12,7 +12,7 @@ import os
 # Đảm bảo import đúng khi chạy từ thư mục dự án
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
-from database import create_tables, get_connection, get_recipe_count
+from database import create_tables, insert_recipe, get_recipe_count
 from config import DB_PATH
 
 
@@ -159,45 +159,13 @@ def seed_database():
 
     print("Đang chèn dữ liệu mẫu...")
 
-    conn = get_connection()
-    cursor = conn.cursor()
-
+    inserted = 0
     for recipe_data in SAMPLE_RECIPES:
-        cursor.execute("""
-            INSERT OR IGNORE INTO recipes
-                (title, url, prep_time_min, cook_time_min, difficulty,
-                 rating, review_count, dietary_labels, raw_ingredients,
-                 instructions, description, image_url)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """, (
-            recipe_data["title"],
-            recipe_data["url"],
-            recipe_data.get("prep_time_min"),
-            recipe_data.get("cook_time_min"),
-            recipe_data.get("difficulty"),
-            recipe_data.get("rating"),
-            recipe_data.get("review_count", 0),
-            recipe_data.get("dietary_labels", ""),
-            recipe_data.get("raw_ingredients", ""),
-            recipe_data.get("instructions", ""),
-            recipe_data.get("description", ""),
-            recipe_data.get("image_url", ""),
-        ))
+        result = insert_recipe(recipe_data)
+        if result is not None:
+            inserted += 1
 
-        # Chỉ insert ingredients khi recipe mới được chèn (rowcount > 0)
-        if cursor.rowcount > 0:
-            recipe_id = cursor.lastrowid
-
-            for ing_name in recipe_data.get("clean_ingredients", []):
-                if ing_name.strip():
-                    cursor.execute(
-                        "INSERT INTO ingredients (recipe_id, ingredient) VALUES (?, ?)",
-                        (recipe_id, ing_name.strip()),
-                    )
-
-    conn.commit()
-    conn.close()
-    print(f"Đã chèn {len(SAMPLE_RECIPES)} công thức mẫu vào database.")
+    print(f"Đã chèn {inserted}/{len(SAMPLE_RECIPES)} công thức mẫu vào database.")
     print(f"Database: {DB_PATH}")
 
 

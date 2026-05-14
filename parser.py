@@ -76,8 +76,9 @@ def parse_time_to_minutes(time_str: str) -> Optional[int]:
     Ví dụ: '1 hr 20 mins' → 80, '30 mins' → 30, '2 hrs' → 120
     Tránh nhận nhầm 'Serves 4' thành 4 phút.
     """
-    if not time_str:
+    if not time_str or not time_str.strip():
         return None
+    time_str = time_str.strip()
     
     # Nếu chứa "serves", loại bỏ phần đó để tránh parse nhầm số người ăn
     time_str = re.sub(r"serves\s*\d+", "", time_str.lower()).strip()

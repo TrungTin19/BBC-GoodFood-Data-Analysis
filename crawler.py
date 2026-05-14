@@ -77,8 +77,9 @@ def safe_request(url: str, max_retries: int = MAX_RETRIES,
             time.sleep(delay)  # Tuân thủ Crawl-delay
             return response
         except requests.exceptions.HTTPError as e:
-            logger.warning(f"HTTP Error {e.response.status_code} tại {url}")
-            if e.response.status_code == 404:
+            status = e.response.status_code if e.response is not None else 'N/A'
+            logger.warning(f"HTTP Error {status} tại {url}")
+            if e.response is not None and e.response.status_code == 404:
                 return None
             time.sleep(RETRY_DELAY * attempt)
         except requests.exceptions.ConnectionError:
@@ -410,7 +411,7 @@ def get_total_pages() -> int:
 def get_recipe_urls_from_page(page_num: int) -> List[str]:
     """Tương thích ngược: lấy URL từ sitemap thứ page_num."""
     sitemaps = _get_cached_sitemap_urls()
-    if page_num <= len(sitemaps):
+    if 1 <= page_num <= len(sitemaps):
         return get_urls_from_sitemap(sitemaps[page_num - 1])
     return []
 

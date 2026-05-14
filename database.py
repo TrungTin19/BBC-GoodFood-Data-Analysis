@@ -77,12 +77,14 @@ def create_tables():
         """)
 
         # Tự động thêm các cột mới nếu chưa tồn tại (tương thích DB cũ)
-        for col_name, col_def in [
+        # Lưu ý: col_name và col_def là hằng số nội bộ, KHÔNG phải user input
+        _NEW_COLUMNS = [
             ("instructions", "TEXT"),
             ("description", "TEXT"),
             ("image_url", "TEXT"),
             ("created_at", "TIMESTAMP DEFAULT CURRENT_TIMESTAMP"),
-        ]:
+        ]
+        for col_name, col_def in _NEW_COLUMNS:
             try:
                 cursor.execute(f"ALTER TABLE recipes ADD COLUMN {col_name} {col_def}")
                 conn.commit()

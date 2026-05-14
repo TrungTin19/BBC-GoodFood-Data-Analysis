@@ -149,9 +149,9 @@ class RecipeSearchEngine:
         match_counts = pd.Series(0, index=results_df.index)
         matched_terms_list = [[] for _ in range(len(results_df))]
         for term in query_terms:
-            mask = texts_lower.str.contains(term, regex=False)
-            match_counts += mask.astype(int)
-            for idx_pos, (idx, val) in enumerate(mask.items()):
+            term_mask = texts_lower.str.contains(term, regex=False)
+            match_counts += term_mask.astype(int)
+            for idx_pos, (idx, val) in enumerate(term_mask.items()):
                 if val:
                     matched_terms_list[idx_pos].append(term)
         results_df["match_count"] = match_counts
