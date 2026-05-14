@@ -417,22 +417,24 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
 
 def _parse_iso_duration(iso_str: str) -> Optional[int]:
     """
-    Chuyển ISO 8601 duration (PT1H20M) sang phút.
+    Chuyển ISO 8601 duration (PT1H20M15S) sang phút.
     Trả về 0 nếu duration hợp lệ nhưng bằng 0 (ví dụ: PT0M).
     Chỉ trả None khi không parse được.
+    Seconds > 0 được làm tròn lên 1 phút.
     """
     if not iso_str:
         return None
-    # Regex hỗ trợ Days, Hours, Minutes (ví dụ: P1DT2H30M hoặc PT1H20M)
-    match = re.match(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?", iso_str)
+    # Regex hỗ trợ Days, Hours, Minutes, Seconds (ví dụ: P1DT2H30M15S hoặc PT1H20M)
+    match = re.match(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso_str)
     if not match:
         return None
         
     days = int(match.group(1)) if match.group(1) else 0
     hours = int(match.group(2)) if match.group(2) else 0
     minutes = int(match.group(3)) if match.group(3) else 0
+    seconds = int(match.group(4)) if match.group(4) else 0
     
-    total = days * 1440 + hours * 60 + minutes
+    total = days * 1440 + hours * 60 + minutes + (1 if seconds > 0 else 0)
     # Nếu tất cả đều 0 và chuỗi không phải dạng "PT0M" hay tương tự thì có thể là parse sai
     if total == 0 and not any(match.groups()):
         return None

@@ -211,8 +211,6 @@ def insert_recipe_batch(recipes: List[Dict]) -> int:
     conn = get_connection()
     count = 0
     try:
-        # Tắt autocommit để bắt đầu transaction
-        conn.execute("BEGIN TRANSACTION")
         for r in recipes:
             result = insert_recipe(r, conn=conn)
             if result is not None:
@@ -383,12 +381,15 @@ def get_top_ingredients(top_n: int = 10) -> List[Tuple[str, int]]:
 def search_recipes_by_name(query: str, top_n: int = 10) -> List[Dict]:
     """
     Tìm kiếm công thức theo tên bằng SQL LIKE (hiệu quả hơn load-all-to-RAM).
+    Escape các ký tự wildcard % và _ để tránh SQL injection.
     """
     conn = get_connection()
     try:
+        # Escape SQL LIKE wildcards từ user input
+        safe_query = query.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
         cursor = conn.execute(
-            "SELECT * FROM recipes WHERE title LIKE ? LIMIT ?",
-            (f"%{query}%", top_n)
+            "SELECT * FROM recipes WHERE title LIKE ? ESCAPE '\\' LIMIT ?",
+            (f"%{safe_query}%", top_n)
         )
         return [dict(row) for row in cursor.fetchall()]
     finally:

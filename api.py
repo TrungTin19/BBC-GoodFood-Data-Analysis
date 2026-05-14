@@ -33,11 +33,17 @@ from ml_search import RecipeSearchEngine
 
 logger = logging.getLogger(__name__)
 
-# Đảm bảo database sẵn sàng khi module được import (ví dụ: flask run)
-create_tables()
-
 app = Flask(__name__)
-CORS(app) # Bật CORS cho toàn bộ API
+CORS(app)  # Bật CORS cho toàn bộ API
+
+
+# Đảm bảo database sẵn sàng khi có request đầu tiên
+@app.before_request
+def _ensure_tables():
+    """Tạo bảng nếu chưa tồn tại (chạy 1 lần duy nhất)."""
+    if not getattr(app, '_tables_created', False):
+        create_tables()
+        app._tables_created = True
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +91,10 @@ def api_recipes():
     try:
         page = request.args.get("page", 1, type=int)
         per_page = request.args.get("per_page", 20, type=int)
+
+        # Giới hạn giá trị hợp lệ để tránh DoS
+        page = max(page, 1)
+        per_page = min(max(per_page, 1), 100)
 
         # Phân trang ở level SQL (LIMIT/OFFSET) thay vì load toàn bộ
         page_recipes, total = get_recipes_paginated(page, per_page)

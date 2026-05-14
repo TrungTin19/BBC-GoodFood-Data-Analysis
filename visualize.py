@@ -240,9 +240,15 @@ def plot_confusion_matrices():
     results = []
     for label in DIETARY_LABELS:
         clf = DietaryClassifier(label_name=label)
-        metrics = clf.train_and_evaluate()
-        if metrics and "confusion_matrix" in metrics:
-            results.append(metrics)
+        # Thử tải model đã lưu trước, chỉ train lại nếu không có
+        clf.load_model()
+        if clf.is_trained and clf.metrics and "confusion_matrix" in clf.metrics:
+            results.append(clf.metrics)
+        else:
+            # Fallback: train mới nếu chưa có model
+            metrics = clf.train_and_evaluate()
+            if metrics and "confusion_matrix" in metrics:
+                results.append(metrics)
 
     if not results:
         logger.warning("Không có kết quả ML để vẽ confusion matrix.")

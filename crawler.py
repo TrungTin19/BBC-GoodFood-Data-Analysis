@@ -17,7 +17,7 @@ import re
 import sys
 import io
 from typing import List, Optional, Set
-from urllib.parse import urljoin
+from urllib.parse import urljoin, urlparse
 
 import requests
 from bs4 import BeautifulSoup
@@ -29,9 +29,15 @@ from config import (
 
 # Đảm bảo console Windows hiển thị UTF-8
 if sys.stdout.encoding != "utf-8":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
 if sys.stderr.encoding != "utf-8":
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    try:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
 
 # Logging: chỉ tạo logger, KHÔNG gọi basicConfig()
 # (main.py đã cấu hình basicConfig rồi, gọi lại sẽ tạo handler trùng)
@@ -161,7 +167,6 @@ def get_urls_from_sitemap(sitemap_url: str) -> List[str]:
         # Bỏ: /premium/, /recipes/collection/, /recipes/category/,
         #      /recipes/vegetarian/..., URL có trailing slash
         if "/recipes/" in url and "/premium/" not in url:
-            from urllib.parse import urlparse
             path = urlparse(url).path
             # Chỉ match dạng /recipes/slug (1 level sau /recipes/)
             if re.match(r"^/recipes/[a-z0-9][a-z0-9\-]*[a-z0-9]$", path):

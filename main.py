@@ -23,9 +23,15 @@ import io
 
 # Đảm bảo console Windows hiển thị UTF-8 đúng
 if sys.stdout.encoding != "utf-8":
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    try:
+        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
 if sys.stderr.encoding != "utf-8":
-    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    try:
+        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
+    except (AttributeError, io.UnsupportedOperation):
+        pass
 
 from config import LOG_FILE, LOG_FORMAT, LOG_LEVEL
 

@@ -14,6 +14,7 @@ import streamlit as st
 import pandas as pd
 import os
 import sys
+from html import escape as html_escape
 
 # Thêm thư mục gốc vào path
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -488,12 +489,12 @@ def main():
                         results = pd.DataFrame()
                 else:
                     # Tìm kiếm theo nguyên liệu (TF-IDF)
-                        results = engine.search_by_ingredients(
-                            query=query,
-                            top_n=top_n,
-                            min_rating=min_rating,
-                            dietary_filter=dietary_filter,
-                        )
+                    results = engine.search_by_ingredients(
+                        query=query,
+                        top_n=top_n,
+                        min_rating=min_rating,
+                        dietary_filter=dietary_filter,
+                    )
 
                 if results.empty:
                     st.info("Không tìm thấy công thức phù hợp. Thử từ khóa khác!")
@@ -507,13 +508,18 @@ def main():
                             if not img_url or not isinstance(img_url, str) or not img_url.startswith("http"):
                                 img_url = "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?q=80&w=1000&auto=format&fit=crop"
                             
+                            # Escape tất cả giá trị từ DB trước khi chèn vào HTML
+                            safe_title = html_escape(str(row.get('title', '')))
+                            safe_url = html_escape(str(row.get('url', '')))
+                            safe_img_url = html_escape(str(img_url))
+                            
                             # Rating string
                             r_val = row.get('rating')
                             rating_str = f"⭐ {r_val:.1f}" if pd.notna(r_val) else "⭐ N/A"
                             
                             # Difficulty string
                             diff_val = row.get('difficulty')
-                            diff = str(diff_val if pd.notna(diff_val) and diff_val else 'Medium').capitalize()
+                            diff = html_escape(str(diff_val if pd.notna(diff_val) and diff_val else 'Medium').capitalize())
                             
                             # Time info
                             prep = f"⏱️ {int(row['prep_time_min'])}m" if pd.notna(row.get('prep_time_min')) else ""
@@ -524,13 +530,13 @@ def main():
                             badges_html = ""
                             if diets:
                                 diet_list = [d.strip() for d in diets.split(',') if d.strip()]
-                                badges_html = "".join([f'<span class="diet-badge">{d}</span>' for d in diet_list])
+                                badges_html = "".join([f'<span class="diet-badge">{html_escape(d)}</span>' for d in diet_list])
                             
                             # Match badge HTML
                             match_html = ""
                             if search_mode != "🔤 Theo tên món ăn" and "match_count" in row:
                                 m_count = int(row["match_count"])
-                                matched_list = row.get("matched_ingredients", "")
+                                matched_list = html_escape(str(row.get("matched_ingredients", "")))
                                 match_html = f"""
                                 <div class="match-badge" title="Matched: {matched_list}">
                                     🔍 {m_count} matching ingredients
@@ -545,10 +551,10 @@ def main():
 {match_html}
 <div class="card-layout">
 <div class="card-img-side">
-<img src="{img_url}" alt="{row['title']}">
+<img src="{safe_img_url}" alt="{safe_title}">
 </div>
 <div class="card-content-side">
-<div class="recipe-title">{row['title']}</div>
+<div class="recipe-title">{safe_title}</div>
 <div class="recipe-meta">
 <div class="meta-item"><b>{rating_str}</b></div>
 <div class="meta-item"><b>{diff}</b></div>
@@ -558,7 +564,7 @@ def main():
 <div style="margin-bottom: 1rem;">{badges_html}</div>
 {similarity_html}
 <div style="margin-top: auto;">
-<a href="{row['url']}" target="_blank" style="text-decoration:none; color:var(--primary); font-weight:600; font-size:0.9rem;">
+<a href="{safe_url}" target="_blank" style="text-decoration:none; color:var(--primary); font-weight:600; font-size:0.9rem;">
 🔗 View full recipe on BBC Good Food
 </a>
 </div>

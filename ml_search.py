@@ -149,9 +149,13 @@ class RecipeSearchEngine:
         # Tính Cosine Similarity giữa query và tất cả công thức
         similarities = cosine_similarity(query_vec, self.tfidf_matrix).flatten()
 
-        # Thêm cột similarity vào DataFrame
-        results_df = self.recipes_df.copy()
-        results_df["similarity"] = similarities
+        # Lọc trước: chỉ copy những recipe có similarity > 0 (đỡ tối ưu bộ nhớ)
+        mask = similarities > 0
+        if not mask.any():
+            return pd.DataFrame()
+
+        results_df = self.recipes_df[mask].copy()
+        results_df["similarity"] = similarities[mask]
 
         # --- TÍNH TOÁN MATCH COUNT (Số nguyên liệu khớp) ---
         # Chúng ta kiểm tra từng từ khóa trong query có xuất hiện trong ingredients_text không
@@ -179,9 +183,6 @@ class RecipeSearchEngine:
                 )
             ]
 
-        # Lọc bỏ kết quả có similarity = 0 (không khớp từ nào)
-        results_df = results_df[results_df["similarity"] > 0]
-
         # Sắp xếp theo match_count giảm dần TRƯỚC, sau đó mới đến similarity
         results_df = results_df.sort_values(
             by=["match_count", "similarity"], 
@@ -193,7 +194,7 @@ class RecipeSearchEngine:
             ["title", "url", "rating", "review_count", "difficulty",
              "dietary_labels", "similarity", "match_count", "matched_ingredients",
              "prep_time_min", "cook_time_min",
-             "raw_ingredients", "instructions", "image_url"]
+             "raw_ingredients", "instructions", "description", "image_url"]
         ].copy()
 
         # Làm tròn similarity
@@ -318,9 +319,9 @@ class DietaryClassifier:
         y_pred = self.pipeline.predict(X_test)
 
         # ---------------------------------------------------------
-        # NEW: Cross-validation (để đảm bảo tính ổn định)
+        # Cross-validation trên tập TRAIN (để đảm bảo tính ổn định, tránh data leakage)
         # ---------------------------------------------------------
-        cv_scores = cross_val_score(self.pipeline, X, y, cv=5)
+        cv_scores = cross_val_score(self.pipeline, X_train, y_train, cv=5)
         cv_mean = round(cv_scores.mean(), 4)
         logger.info(f"[{self.label_name}] Cross-val scores: {cv_scores}")
 
