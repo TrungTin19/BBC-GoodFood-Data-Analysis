@@ -19,21 +19,8 @@ import logging
 import time
 import sys
 import os
-import io
 
-# Đảm bảo console Windows hiển thị UTF-8 đúng
-if sys.stdout.encoding != "utf-8":
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
-if sys.stderr.encoding != "utf-8":
-    try:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
-
-from config import LOG_FILE, LOG_FORMAT, LOG_LEVEL
+from config import LOG_FILE, LOG_FORMAT, LOG_LEVEL, MIN_RECIPES, BATCH_SIZE
 
 # Cấu hình logging
 logging.basicConfig(
@@ -91,8 +78,8 @@ def phase_3_collect_urls(existing_count: int):
     existing = get_existing_urls()
     print(f"  URL đã có trong database: {len(existing)}")
 
-    if len(existing) >= 1000:
-        print(f"  Đã đủ >= 1000 URL. Bỏ qua phase thu thập.")
+    if len(existing) >= MIN_RECIPES:
+        print(f"  Đã đủ >= {MIN_RECIPES} URL. Bỏ qua phase thu thập.")
         return []
 
     urls = get_recipe_urls(existing_urls=existing)
@@ -115,7 +102,6 @@ def phase_4_5_parse_and_save(urls):
     from crawler import safe_request
 
     total = len(urls)
-    BATCH_SIZE = 50
     total_inserted = 0
     total_failed = 0
     batch_recipes = []
@@ -275,7 +261,7 @@ def main():
         print("    GET /api/recipes/<id>       -> Chi tiết công thức")
         print("    GET /api/search?q=chicken   -> Tìm theo nguyên liệu")
         print("    GET /api/search-name?q=pasta -> Tìm theo tên")
-        app.run(debug=True, host="127.0.0.1", port=5000)
+        app.run(debug=os.getenv("FLASK_DEBUG", "0") == "1", host="127.0.0.1", port=5000)
         return
 
     # Pipeline chính

@@ -274,13 +274,13 @@ def build_card_html(row, search_mode, delay_idx=0):
             badges += f'<span class="diet-badge">{html_escape(d)}</span>'
 
     match_html = ""
-    if search_mode != "🔤 Theo tên món ăn" and "match_count" in row.index:
+    if search_mode != "🔤 Theo tên món ăn" and row.get("match_count") is not None:
         mc = int(row["match_count"])
         if mc > 0:
             match_html = f'<div class="match-badge">🔍 {mc} matched</div>'
 
     sim_html = ""
-    if search_mode != "🔤 Theo tên món ăn" and "similarity" in row.index:
+    if search_mode != "🔤 Theo tên món ăn" and row.get("similarity") is not None:
         sim_html = f'<div style="font-size:0.75rem;opacity:0.5;margin-top:0.3rem">🎯 Score: {row["similarity"]:.4f}</div>'
 
     delay = delay_idx * 0.07

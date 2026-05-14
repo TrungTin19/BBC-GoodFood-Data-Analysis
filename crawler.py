@@ -14,8 +14,6 @@ Chiến lược thu thập:
 import time
 import logging
 import re
-import sys
-import io
 from typing import List, Optional, Set
 from urllib.parse import urljoin, urlparse
 
@@ -26,18 +24,6 @@ from config import (
     BASE_URL, RECIPES_LIST_URL, REQUEST_DELAY, REQUEST_TIMEOUT,
     MAX_RETRIES, RETRY_DELAY, DEFAULT_HEADERS, MIN_RECIPES,
 )
-
-# Đảm bảo console Windows hiển thị UTF-8
-if sys.stdout.encoding != "utf-8":
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
-if sys.stderr.encoding != "utf-8":
-    try:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
 
 # Logging: chỉ tạo logger, KHÔNG gọi basicConfig()
 # (main.py đã cấu hình basicConfig rồi, gọi lại sẽ tạo handler trùng)

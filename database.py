@@ -8,24 +8,11 @@ truy vấn dữ liệu. Hỗ trợ kiểm tra trùng lặp qua UNIQUE(url).
 
 import sqlite3
 import logging
-import sys
-import io
-
-# Đảm bảo console Windows hiển thị UTF-8 đúng
-if sys.stdout.encoding != "utf-8":
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
-if sys.stderr.encoding != "utf-8":
-    try:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
 
 from typing import Dict, List, Optional, Any, Tuple
 
 from config import DB_PATH, DATA_DIR
+
 
 logger = logging.getLogger(__name__)
 
@@ -39,10 +26,11 @@ def get_connection() -> sqlite3.Connection:
     return conn
 
 
-def get_all(query: str = "SELECT * FROM recipes", params: Tuple = ()) -> List[Dict]:
+def _get_all(query: str = "SELECT * FROM recipes", params: Tuple = ()) -> List[Dict]:
     """
-    Truy vấn chung theo câu SQL (an toàn hơn với parameterized query).
-    
+    INTERNAL: Truy vấn chung theo câu SQL. KHÔNG truyền user input vào query.
+    Luôn sử dụng params cho giá trị động.
+
     Args:
         query: Câu SQL SELECT (vd: "SELECT * FROM recipes WHERE rating > ?")
         params: Tuple chứa các tham số cho câu SQL
@@ -225,8 +213,9 @@ def insert_recipe_batch(recipes: List[Dict]) -> int:
     return count
 
 
+# Alias cho backward compatibility
 def insert_many_recipes(recipes: List[Dict]) -> int:
-    """Chèn nhiều công thức bằng cơ chế batching."""
+    """Alias của insert_recipe_batch (backward compatibility)."""
     return insert_recipe_batch(recipes)
 
 

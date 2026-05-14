@@ -16,6 +16,7 @@ API Endpoints:
 import sys
 import os
 import logging
+import threading
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
@@ -34,7 +35,7 @@ from ml_search import RecipeSearchEngine
 logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
-CORS(app)  # Bật CORS cho toàn bộ API
+CORS(app, origins=["http://localhost:8501", "http://127.0.0.1:8501"])  # Chỉ cho phép Streamlit
 
 
 # Đảm bảo database sẵn sàng khi có request đầu tiên
@@ -50,18 +51,20 @@ def _ensure_tables():
 # Khởi tạo search engine (cache toàn cục)
 # ---------------------------------------------------------------------------
 _search_engine = None
+_engine_lock = threading.Lock()
 
 
 def _get_search_engine() -> RecipeSearchEngine:
-    """Khởi tạo hoặc trả về search engine đã có, tự động rebuild nếu stale."""
+    """Khởi tạo hoặc trả về search engine đã có, tự động rebuild nếu stale (thread-safe)."""
     global _search_engine
-    if _search_engine is None:
-        _search_engine = RecipeSearchEngine()
-        _search_engine.build_index()
-    elif _search_engine.is_stale():
-        logger.info("Chỉ mục cũ, đang tự động rebuild...")
-        _search_engine.build_index()
-    return _search_engine
+    with _engine_lock:
+        if _search_engine is None:
+            _search_engine = RecipeSearchEngine()
+            _search_engine.build_index()
+        elif _search_engine.is_stale():
+            logger.info("Chỉ mục cũ, đang tự động rebuild...")
+            _search_engine.build_index()
+        return _search_engine
 
 
 # ---------------------------------------------------------------------------
@@ -241,4 +244,4 @@ if __name__ == "__main__":
     print("  Nhấn Ctrl+C để tắt server.")
     print("=" * 50)
 
-    app.run(debug=True, host="127.0.0.1", port=5000)
+    app.run(debug=os.getenv("FLASK_DEBUG", "0") == "1", host="127.0.0.1", port=5000)

@@ -215,7 +215,7 @@ class TestDatabase(unittest.TestCase):
             "clean_ingredients": ["a"],
         }
         database.insert_recipe(recipe_data)
-        results = database.get_all("SELECT * FROM recipes")
+        results = database._get_all("SELECT * FROM recipes")
         self.assertEqual(len(results), 1)
 
     def test_get_recipe_by_id(self):

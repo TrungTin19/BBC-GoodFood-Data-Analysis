@@ -8,20 +8,6 @@ top 10 nguyên liệu phổ biến, và các thống kê tổng hợp.
 
 import os
 import logging
-import sys
-import io
-
-# Đảm bảo console Windows hiển thị UTF-8 đúng
-if sys.stdout.encoding != "utf-8":
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
-if sys.stderr.encoding != "utf-8":
-    try:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
 
 import matplotlib
 matplotlib.use("Agg")  # Backend không cần GUI
@@ -31,7 +17,7 @@ import pandas as pd
 
 from config import CHARTS_DIR
 from database import (
-    get_all_recipes, get_top_ingredients,
+    get_connection, get_all_recipes, get_top_ingredients,
     get_difficulty_distribution, get_statistics
 )
 
@@ -79,17 +65,18 @@ def plot_difficulty_distribution():
 
 
 def plot_rating_distribution():
-    """Vẽ biểu đồ phân bố rating (histogram)."""
-    recipes = get_all_recipes()
-    if not recipes:
-        return None
+    """Vẽ biểu đồ phân bố rating (histogram). Chỉ load cột cần thiết."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT rating FROM recipes WHERE rating IS NOT NULL", conn)
+    finally:
+        conn.close()
 
-    df = pd.DataFrame(recipes)
-    ratings = df["rating"].dropna()
-
-    if ratings.empty:
+    if df.empty:
         logger.warning("Không có dữ liệu rating.")
         return None
+
+    ratings = df["rating"]
 
     fig, ax = plt.subplots()
     sns.histplot(ratings, bins=20, kde=True, color="steelblue", ax=ax,
@@ -149,12 +136,15 @@ def plot_top_ingredients(top_n: int = 10):
 
 
 def plot_prep_cook_time():
-    """Vẽ biểu đồ phân bố thời gian chuẩn bị và nấu."""
-    recipes = get_all_recipes()
-    if not recipes:
-        return None
+    """Vẽ biểu đồ phân bố thời gian chuẩn bị và nấu. Chỉ load cột cần thiết."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT prep_time_min, cook_time_min FROM recipes", conn)
+    finally:
+        conn.close()
 
-    df = pd.DataFrame(recipes)
+    if df.empty:
+        return None
 
     fig, axes = plt.subplots(1, 2, figsize=(14, 5))
 
@@ -187,12 +177,15 @@ def plot_prep_cook_time():
 
 
 def plot_dietary_labels():
-    """Vẽ biểu đồ phân bố chế độ ăn."""
-    recipes = get_all_recipes()
-    if not recipes:
-        return None
+    """Vẽ biểu đồ phân bố chế độ ăn. Chỉ load cột cần thiết."""
+    conn = get_connection()
+    try:
+        df = pd.read_sql("SELECT dietary_labels FROM recipes WHERE dietary_labels IS NOT NULL AND dietary_labels != ''", conn)
+    finally:
+        conn.close()
 
-    df = pd.DataFrame(recipes)
+    if df.empty:
+        return None
     labels_count = {}
     for labels_str in df["dietary_labels"].dropna():
         for label in str(labels_str).split(","):
@@ -272,7 +265,7 @@ def plot_confusion_matrices():
         ax.set_xlabel("Predicted")
         ax.set_ylabel("Actual")
 
-    plt.suptitle("Naive Bayes Classification — Confusion Matrices", fontweight="bold", y=1.02)
+    plt.suptitle("ML Classification — Confusion Matrices", fontweight="bold", y=1.02)
     plt.tight_layout()
 
     path = os.path.join(CHARTS_DIR, "confusion_matrices.png")

@@ -11,20 +11,6 @@ Chức năng:
 import logging
 import joblib
 import os
-import sys
-import io
-
-# Đảm bảo console Windows hiển thị UTF-8 đúng
-if sys.stdout.encoding != "utf-8":
-    try:
-        sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
-if sys.stderr.encoding != "utf-8":
-    try:
-        sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
-    except (AttributeError, io.UnsupportedOperation):
-        pass
 
 from typing import List, Dict, Optional, Tuple, Any
 
@@ -158,15 +144,18 @@ class RecipeSearchEngine:
         results_df["similarity"] = similarities[mask]
 
         # --- TÍNH TOÁN MATCH COUNT (Số nguyên liệu khớp) ---
-        # Chúng ta kiểm tra từng từ khóa trong query có xuất hiện trong ingredients_text không
-        def calculate_matches(ing_text):
-            ing_text_lower = str(ing_text).lower()
-            matched = [term for term in query_terms if term in ing_text_lower]
-            return len(matched), ", ".join(matched)
-
-        match_results = results_df["ingredients_text"].apply(calculate_matches)
-        results_df["match_count"] = match_results.apply(lambda x: x[0])
-        results_df["matched_ingredients"] = match_results.apply(lambda x: x[1])
+        # Vectorized: kiểm tra từng từ khóa bằng str.contains thay vì .apply()
+        texts_lower = results_df["ingredients_text"].str.lower()
+        match_counts = pd.Series(0, index=results_df.index)
+        matched_terms_list = [[] for _ in range(len(results_df))]
+        for term in query_terms:
+            mask = texts_lower.str.contains(term, regex=False)
+            match_counts += mask.astype(int)
+            for idx_pos, (idx, val) in enumerate(mask.items()):
+                if val:
+                    matched_terms_list[idx_pos].append(term)
+        results_df["match_count"] = match_counts
+        results_df["matched_ingredients"] = [", ".join(terms) for terms in matched_terms_list]
 
         # Lọc theo rating tối thiểu
         if min_rating > 0:
@@ -261,9 +250,12 @@ class DietaryClassifier:
             
         df = df[df["raw_ingredients"].notna() & (df["raw_ingredients"] != "")]
 
-        # Tạo nhãn nhị phân
+        # Tạo nhãn nhị phân (exact match per comma-separated token, tránh substring match)
         df["label"] = df["dietary_labels"].apply(
-            lambda x: 1 if self.label_name.lower() in str(x).lower() else 0
+            lambda x: 1 if any(
+                self.label_name.lower() == lbl.strip().lower()
+                for lbl in str(x).split(",")
+            ) else 0
         )
 
         X = df["raw_ingredients"]

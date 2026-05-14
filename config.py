@@ -7,6 +7,8 @@ trong toàn bộ dự án.
 """
 
 import os
+import sys
+import io
 
 # ============================================================
 # 1. CẤU HÌNH THƯ MỤC VÀ FILE
@@ -44,6 +46,9 @@ MAX_PAGES = 0
 
 # Số công thức tối thiểu cần thu thập
 MIN_RECIPES = 1000
+
+# Kích thước batch khi lưu công thức vào database
+BATCH_SIZE = 50
 
 # Thời gian chờ giữa các request (giây) - tuân thủ Crawl-delay: 1
 REQUEST_DELAY = 1.0
@@ -100,3 +105,28 @@ DEFAULT_MIN_RATING = 0.0
 LOG_FILE = os.path.join(LOG_DIR, "crawler.log")
 LOG_FORMAT = "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 LOG_LEVEL = "INFO"
+
+
+# ============================================================
+# 6. TIỆN ÍCH CONSOLE UTF-8 (DRY - dùng chung cho tất cả module)
+# ============================================================
+def ensure_utf8_console():
+    """Đảm bảo console Windows hiển thị UTF-8 đúng."""
+    if sys.stdout.encoding != "utf-8":
+        try:
+            sys.stdout = io.TextIOWrapper(
+                sys.stdout.buffer, encoding="utf-8", errors="replace"
+            )
+        except (AttributeError, io.UnsupportedOperation):
+            pass
+    if sys.stderr.encoding != "utf-8":
+        try:
+            sys.stderr = io.TextIOWrapper(
+                sys.stderr.buffer, encoding="utf-8", errors="replace"
+            )
+        except (AttributeError, io.UnsupportedOperation):
+            pass
+
+
+# Tự động gọi khi import config
+ensure_utf8_console()
