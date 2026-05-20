@@ -12,6 +12,7 @@ import logging
 from typing import Dict, List, Optional, Any, Tuple
 
 from config import DB_PATH, DATA_DIR
+from parser import normalize_duration_minutes
 
 
 logger = logging.getLogger(__name__)
@@ -137,6 +138,8 @@ def insert_recipe(recipe_data: Dict[str, Any], conn: Optional[sqlite3.Connection
     
     try:
         cursor = conn.cursor()
+        prep_time_min = normalize_duration_minutes(recipe_data.get("prep_time_min"))
+        cook_time_min = normalize_duration_minutes(recipe_data.get("cook_time_min"))
 
         # INSERT OR IGNORE: bỏ qua nếu url đã tồn tại (UNIQUE constraint)
         cursor.execute("""
@@ -148,8 +151,8 @@ def insert_recipe(recipe_data: Dict[str, Any], conn: Optional[sqlite3.Connection
         """, (
             recipe_data.get("title", "Unknown"),
             recipe_data["url"],
-            recipe_data.get("prep_time_min"),
-            recipe_data.get("cook_time_min"),
+            prep_time_min,
+            cook_time_min,
             recipe_data.get("difficulty"),
             recipe_data.get("rating"),
             recipe_data.get("review_count", 0),

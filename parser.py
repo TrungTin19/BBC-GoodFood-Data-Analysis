@@ -10,13 +10,15 @@ Làm sạch nguyên liệu: loại bỏ số lượng, đơn vị, hướng dẫ
 import re
 import logging
 import json
-from typing import Dict, List, Optional, Any
+from typing import Dict, List, Optional, Any, Union
 
 from bs4 import BeautifulSoup
 
 from crawler import safe_request
 
 logger = logging.getLogger(__name__)
+
+MAX_REASONABLE_DURATION_MINUTES = 1440
 
 
 def debug_selectors(url: str) -> None:
@@ -70,47 +72,74 @@ def debug_selectors(url: str) -> None:
     print(f"{'='*70}\n")
 
 
-def parse_time_to_minutes(time_str: str) -> Optional[int]:
+def normalize_duration_minutes(
+    value: Union[str, int, float, None],
+    max_minutes: int = MAX_REASONABLE_DURATION_MINUTES,
+) -> Optional[int]:
+    """
+    Chuẩn hóa duration về số phút hợp lệ.
+
+    Hợp lệ: 0..1440 phút. Giá trị âm, quá lớn, rỗng hoặc parse lỗi trả None.
+    Hỗ trợ text thường ("1 hr 30 mins"), ISO 8601 ("PT1H30M") và số phút.
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, (int, float)):
+        try:
+            minutes = int(value)
+        except (TypeError, ValueError, OverflowError):
+            return None
+        return minutes if 0 <= minutes <= max_minutes else None
+
+    text = str(value).strip()
+    if not text:
+        return None
+
+    if re.match(r"^P", text, flags=re.IGNORECASE):
+        return _parse_iso_duration(text, max_minutes=max_minutes)
+
+    lowered = text.lower()
+    lowered = re.sub(r"serves\s*\d+", "", lowered).strip()
+
+    total = 0
+    found = False
+
+    hr_match = re.search(r"(\d+)\s*(?:hr|hour)s?", lowered)
+    if hr_match:
+        total += int(hr_match.group(1)) * 60
+        found = True
+
+    min_match = re.search(r"(\d+)\s*(?:min|minute)s?", lowered)
+    if min_match:
+        total += int(min_match.group(1))
+        found = True
+
+    if not found:
+        num_match = re.search(r"^-?\d+$", lowered)
+        if num_match:
+            total = int(num_match.group(0))
+            found = True
+        elif re.search(r"\d+", lowered) and any(
+            kw in lowered for kw in ["time", "prep", "cook", "ready"]
+        ):
+            num_match = re.search(r"(\d+)", lowered)
+            if num_match:
+                total = int(num_match.group(1))
+                found = True
+
+    if not found:
+        return None
+    return total if 0 <= total <= max_minutes else None
+
+
+def parse_time_to_minutes(time_str: Union[str, int, float, None]) -> Optional[int]:
     """
     Chuyển đổi chuỗi thời gian sang phút.
     Ví dụ: '1 hr 20 mins' → 80, '30 mins' → 30, '2 hrs' → 120
     Tránh nhận nhầm 'Serves 4' thành 4 phút.
     """
-    if not time_str or not time_str.strip():
-        return None
-    time_str = time_str.strip()
-    
-    # Nếu chứa "serves", loại bỏ phần đó để tránh parse nhầm số người ăn
-    time_str = re.sub(r"serves\s*\d+", "", time_str.lower()).strip()
-    
-    total = 0
-    found = False
-    
-    # Tìm giờ (hr, hour, hrs, hours)
-    hr_match = re.search(r"(\d+)\s*(?:hr|hour)s?", time_str)
-    if hr_match:
-        total += int(hr_match.group(1)) * 60
-        found = True
-    
-    # Tìm phút (min, minute, mins, minutes)
-    min_match = re.search(r"(\d+)\s*(?:min|minute)s?", time_str)
-    if min_match:
-        total += int(min_match.group(1))
-        found = True
-        
-    # Nếu chỉ có số thuần (giả sử là phút)
-    if not found:
-        num_match = re.search(r"^(\d+)$", time_str)
-        if num_match:
-            total = int(num_match.group(1))
-            found = True
-        elif re.search(r"\d+", time_str) and any(kw in time_str for kw in ["time", "prep", "cook", "ready"]):
-            num_match = re.search(r"(\d+)", time_str)
-            if num_match:
-                total = int(num_match.group(1))
-                found = True
-                
-    return total if found else None
+    return normalize_duration_minutes(time_str)
 
 
 def clean_ingredient(raw: str) -> str:
@@ -416,7 +445,10 @@ def extract_recipe_data(url: str) -> Optional[Dict[str, Any]]:
     return recipe
 
 
-def _parse_iso_duration(iso_str: str) -> Optional[int]:
+def _parse_iso_duration(
+    iso_str: str,
+    max_minutes: int = MAX_REASONABLE_DURATION_MINUTES,
+) -> Optional[int]:
     """
     Chuyển ISO 8601 duration (PT1H20M15S) sang phút.
     Trả về 0 nếu duration hợp lệ nhưng bằng 0 (ví dụ: PT0M).
@@ -426,7 +458,7 @@ def _parse_iso_duration(iso_str: str) -> Optional[int]:
     if not iso_str:
         return None
     # Regex hỗ trợ Days, Hours, Minutes, Seconds (ví dụ: P1DT2H30M15S hoặc PT1H20M)
-    match = re.match(r"P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?", iso_str)
+    match = re.match(r"^P(?:(\d+)D)?T?(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$", iso_str, flags=re.IGNORECASE)
     if not match:
         return None
         
@@ -440,7 +472,7 @@ def _parse_iso_duration(iso_str: str) -> Optional[int]:
     if total == 0 and not any(match.groups()):
         return None
         
-    return total
+    return total if 0 <= total <= max_minutes else None
 
 
 def parse_multiple_recipes(urls: List[str],

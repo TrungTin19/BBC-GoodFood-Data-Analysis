@@ -37,6 +37,58 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__)
 CORS(app, origins=["http://localhost:8501", "http://127.0.0.1:8501"])  # Chỉ cho phép Streamlit
 
+MAX_QUERY_LENGTH = 300
+MAX_TOP_N = 50
+MAX_PER_PAGE = 100
+
+
+def _validation_error(parameter: str, message: str, status_code: int = 400):
+    """Return a consistent JSON validation error response."""
+    return jsonify({
+        "error": "invalid_parameter",
+        "parameter": parameter,
+        "message": message,
+    }), status_code
+
+
+def _parse_int_arg(name: str, default: int, min_value: int, max_value: int):
+    """Parse and range-check an integer query parameter."""
+    raw = request.args.get(name)
+    if raw is None:
+        return default, None
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        return None, f"'{name}' must be an integer."
+    if value < min_value or value > max_value:
+        return None, f"'{name}' must be between {min_value} and {max_value}."
+    return value, None
+
+
+def _parse_float_arg(name: str, default: float, min_value: float, max_value: float):
+    """Parse and range-check a float query parameter."""
+    raw = request.args.get(name)
+    if raw is None:
+        return default, None
+    try:
+        value = float(raw)
+    except (TypeError, ValueError):
+        return None, f"'{name}' must be a number."
+    if value < min_value or value > max_value:
+        return None, f"'{name}' must be between {min_value} and {max_value}."
+    return value, None
+
+
+def _parse_query_arg(name: str):
+    """Validate a user search query before it reaches SQL/ML code."""
+    value = request.args.get(name, "")
+    value = value.strip()
+    if not value:
+        return None, f"'{name}' must not be empty."
+    if len(value) > MAX_QUERY_LENGTH:
+        return None, f"'{name}' must be at most {MAX_QUERY_LENGTH} characters."
+    return value, None
+
 
 # Đảm bảo database sẵn sàng khi có request đầu tiên
 @app.before_request
@@ -92,12 +144,12 @@ def api_stats():
 def api_recipes():
     """GET /api/recipes - Danh sách công thức (phân trang SQL)."""
     try:
-        page = request.args.get("page", 1, type=int)
-        per_page = request.args.get("per_page", 20, type=int)
-
-        # Giới hạn giá trị hợp lệ để tránh DoS
-        page = max(page, 1)
-        per_page = min(max(per_page, 1), 100)
+        page, error = _parse_int_arg("page", 1, 1, 1_000_000)
+        if error:
+            return _validation_error("page", error)
+        per_page, error = _parse_int_arg("per_page", 20, 1, MAX_PER_PAGE)
+        if error:
+            return _validation_error("per_page", error)
 
         # Phân trang ở level SQL (LIMIT/OFFSET) thay vì load toàn bộ
         page_recipes, total = get_recipes_paginated(page, per_page)
@@ -144,13 +196,16 @@ def api_recipe_detail(recipe_id):
 def api_search():
     """GET /api/search - Tìm kiếm công thức theo nguyên liệu (TF-IDF)."""
     try:
-        query = request.args.get("q", "")
-        top_n = request.args.get("top_n", 10, type=int)
-        min_rating = request.args.get("min_rating", 0, type=float)
+        query, error = _parse_query_arg("q")
+        if error:
+            return _validation_error("q", error)
+        top_n, error = _parse_int_arg("top_n", 10, 1, MAX_TOP_N)
+        if error:
+            return _validation_error("top_n", error)
+        min_rating, error = _parse_float_arg("min_rating", 0, 0, 5)
+        if error:
+            return _validation_error("min_rating", error)
         dietary_filter = request.args.get("dietary", None, type=str)
-
-        if not query.strip():
-            return jsonify({"message": "Thiếu tham số 'q' (nguyên liệu)"}), 400
 
         engine = _get_search_engine()
         results = engine.search_by_ingredients(
@@ -197,11 +252,12 @@ def api_search():
 def api_search_name():
     """GET /api/search-name - Tìm kiếm công thức theo tên (partial match)."""
     try:
-        query = request.args.get("q", "")
-        top_n = request.args.get("top_n", 10, type=int)
-
-        if not query.strip():
-            return jsonify({"message": "Thiếu tham số 'q' (tên món ăn)"}), 400
+        query, error = _parse_query_arg("q")
+        if error:
+            return _validation_error("q", error)
+        top_n, error = _parse_int_arg("top_n", 10, 1, MAX_TOP_N)
+        if error:
+            return _validation_error("top_n", error)
 
         # Tìm kiếm theo tên (SQL LIKE)
         matched = search_recipes_by_name(query, top_n)

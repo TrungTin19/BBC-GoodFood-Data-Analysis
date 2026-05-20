@@ -39,6 +39,28 @@ MODEL_DIR = os.path.join(DATA_DIR, "models")
 os.makedirs(MODEL_DIR, exist_ok=True)
 
 
+def is_trusted_model_path(path: str) -> bool:
+    """Return True only for model files inside the project model directory."""
+    model_dir = os.path.abspath(MODEL_DIR)
+    candidate = os.path.abspath(path)
+    return os.path.commonpath([model_dir, candidate]) == model_dir
+
+
+def get_model_path(model_type: str, label_name: str) -> str:
+    """
+    Build a trusted internal model path.
+
+    joblib uses pickle internally, so models must only be loaded from this
+    project-controlled directory and never from user-supplied paths.
+    """
+    safe_model_type = model_type.lower().replace(os.sep, "_").replace("/", "_")
+    safe_label = label_name.lower().replace(os.sep, "_").replace("/", "_")
+    path = os.path.join(MODEL_DIR, f"{safe_model_type}_{safe_label}.pkl")
+    if not is_trusted_model_path(path):
+        raise ValueError(f"Untrusted model path rejected: {path}")
+    return path
+
+
 # ============================================================
 # 1. TÌM KIẾM BẰNG TF-IDF + COSINE SIMILARITY
 # ============================================================
@@ -369,7 +391,7 @@ class DietaryClassifier:
 
     def save_model(self):
         """Lưu model và metrics ra file."""
-        path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
+        path = get_model_path(self.model_type, self.label_name)
         data = {
             "pipeline": self.pipeline,
             "metrics": self.metrics
@@ -378,9 +400,16 @@ class DietaryClassifier:
         logger.info(f"Đã lưu model & metrics ({self.model_type}): {path}")
 
     def load_model(self):
-        """Tải model và metrics từ file."""
-        path = os.path.join(MODEL_DIR, f"{self.model_type}_{self.label_name.lower()}.pkl")
+        """
+        Tải model và metrics từ file nội bộ.
+
+        Cảnh báo bảo mật: joblib.load dùng pickle, chỉ load file model do dự án
+        tự tạo trong MODEL_DIR. Không truyền đường dẫn từ user input.
+        """
+        path = get_model_path(self.model_type, self.label_name)
         if os.path.exists(path):
+            if not is_trusted_model_path(path):
+                raise ValueError(f"Untrusted model path rejected: {path}")
             data = joblib.load(path)
             if isinstance(data, dict) and "pipeline" in data:
                 self.pipeline = data["pipeline"]
